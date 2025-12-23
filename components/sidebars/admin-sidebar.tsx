@@ -28,6 +28,7 @@ import {
   LayersIcon,
   BookOpenIcon,
   PlusIcon,
+  CheckSquare,
 } from "lucide-react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -43,6 +44,7 @@ export function AdminSidebar() {
     { href: "/batches", label: "Batches", icon: LayersIcon },
     { href: "/teachers", label: "Teachers", icon: FileChartColumnIcon },
     { href: "/attendance", label: "Attendance", icon: CalendarCheck2Icon },
+    { href: "/tasks", label: "Tasks", icon: CheckSquare },
     { href: "/certificates", label: "Certificates", icon: AwardIcon },
     { href: "/reports", label: "Reports", icon: FileChartColumnIcon },
     { href: "/exam-master", label: "Exam Master", icon: ClipboardListIcon },
