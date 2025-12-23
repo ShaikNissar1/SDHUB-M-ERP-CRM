@@ -76,9 +76,9 @@ export default function TeacherDashboardPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {[
-                  { time: "09:00 AM", course: "Maths - Batch A", room: "Room 201" },
-                  { time: "11:30 AM", course: "Physics - Batch B", room: "Room 105" },
-                  { time: "02:00 PM", course: "Chemistry - Batch C", room: "Lab 2" },
+                  { time: "09:00 AM", course: "Digital Marketing - Batch A", room: "Room 201" },
+                  { time: "11:30 AM", course: "Tally ERP - Batch B", room: "Room 105" },
+                  { time: "02:00 PM", course: "Advanced Excel - Batch C", room: "Lab 2" },
                 ].map((c, i) => (
                   <div key={i} className="flex items-center justify-between rounded-md border p-3">
                     <div className="min-w-0">
@@ -120,16 +120,19 @@ export default function TeacherDashboardPage() {
 
       {/* Quick Action Buttons */}
       <div className="flex flex-wrap gap-2">
-        <Link href="/(app)/teacher/attendance">
+        <Link href="/teacher/attendance">
           <Button variant="secondary">Mark Attendance</Button>
         </Link>
-        <Link href="/(app)/teacher/performance">
+        <Link href="/teacher/tests">
           <Button variant="secondary">Manage Tests</Button>
         </Link>
-        <Link href="/(app)/teacher/assignments">
+        <Link href="/teacher/assignments">
           <Button variant="secondary">Assignments</Button>
         </Link>
-        <Link href="/(app)/teacher/reports">
+        <Link href="/teacher/students">
+          <Button variant="secondary">View Students</Button>
+        </Link>
+        <Link href="/teacher/reports">
           <Button>Generate Reports</Button>
         </Link>
       </div>
