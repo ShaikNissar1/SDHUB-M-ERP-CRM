@@ -4,120 +4,209 @@ import { Line, LineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } fro
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { useEffect, useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { createBrowserClient } from "@supabase/ssr"
+import { TrendingUp, Calendar } from "lucide-react"
 
 type TimeInterval = "days" | "weeks" | "months"
 type DataPoint = { date: string; count: number }
 
-// 🔹 Smooth wave-like trend generator (THIS is the key)
-const generateSmoothTrendData = (days: number): DataPoint[] => {
-  const today = new Date()
-  const data: DataPoint[] = []
-
-  const base = 15 // baseline enquiries
-  const amplitude = 10 // height of waves
-  const frequency = 2.5 // number of waves across range
-
-  for (let i = 0; i < days; i++) {
-    const d = new Date(today)
-    d.setDate(today.getDate() - (days - 1 - i))
-
-    // Smooth sine-wave trend
-    const wave = Math.sin((i / days) * Math.PI * frequency) * amplitude
-
-    // Small natural variation
-    const noise = Math.random() * 2 - 1
-
-    const value = Math.max(5, Math.min(35, base + wave + noise))
-
-    data.push({
-      date: d.toISOString().split("T")[0],
-      count: Math.round(value),
-    })
-  }
-
-  return data
-}
-
 export function EnquiriesOverTimeLine() {
-  const [interval, setInterval] = useState("days")
+  const [interval, setInterval] = useState<TimeInterval>("days")
   const [data, setData] = useState<DataPoint[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  )
 
   useEffect(() => {
-    const raw = generateSmoothTrendData(30)
+    const fetchEnquiriesData = async () => {
+      setLoading(true)
 
-    if (interval === "days") {
-      setData(raw)
-      return
-    }
+      const { data: leads, error } = await supabase
+        .from("leads")
+        .select("created_at")
+        .order("created_at", { ascending: true })
 
-    const map = new Map<string, number>()
-
-    raw.forEach((d) => {
-      const date = new Date(d.date)
-      let key: string
-
-      if (interval === "weeks") {
-        const weekStart = new Date(date)
-        weekStart.setDate(date.getDate() - date.getDay())
-        key = weekStart.toISOString().split("T")[0]
-      } else {
-        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+      if (error) {
+        console.error("[v0] Error fetching enquiries:", error)
+        setLoading(false)
+        return
       }
 
-      map.set(key, (map.get(key) || 0) + d.count)
-    })
+      if (!leads || leads.length === 0) {
+        setData([])
+        setLoading(false)
+        return
+      }
 
-    setData(
-      Array.from(map.entries()).map(([date, count]) => ({
-        date,
-        count,
-      })),
+      // Group by date
+      const dateMap = new Map<string, number>()
+
+      leads.forEach((lead) => {
+        const date = new Date(lead.created_at)
+        let key: string
+
+        if (interval === "days") {
+          key = date.toISOString().split("T")[0]
+        } else if (interval === "weeks") {
+          const weekStart = new Date(date)
+          weekStart.setDate(date.getDate() - date.getDay())
+          key = weekStart.toISOString().split("T")[0]
+        } else {
+          key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+        }
+
+        dateMap.set(key, (dateMap.get(key) || 0) + 1)
+      })
+
+      // Convert to array and sort
+      const chartData = Array.from(dateMap.entries())
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+
+      setData(chartData)
+      setLoading(false)
+    }
+
+    fetchEnquiriesData()
+
+    const channel = supabase
+      .channel("enquiries_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, () => {
+        fetchEnquiriesData()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [interval, supabase])
+
+  const formatXAxis = (value: string) => {
+    const date = new Date(value)
+    if (interval === "months") {
+      return date.toLocaleDateString("en-US", { month: "short", year: "numeric" })
+    }
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+  }
+
+  const trendPercentage =
+    data.length >= 2
+      ? Math.round(((data[data.length - 1].count - data[data.length - 2].count) / data[data.length - 2].count) * 100)
+      : 0
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[380px]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Loading enquiries data...</p>
+        </div>
+      </div>
     )
-  }, [interval])
+  }
 
-  const formatXAxis = (value: string) =>
-    new Date(value).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    })
+  if (data.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[380px]">
+        <div className="text-center space-y-2">
+          <Calendar className="h-12 w-12 text-muted-foreground/50 mx-auto" />
+          <p className="text-sm text-muted-foreground">No enquiries data available</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div>
-      {/* Interval Selector */}
-      <Select value={interval} onValueChange={(v) => setInterval(v as TimeInterval)}>
-        <SelectTrigger>
-          <SelectValue placeholder="Select interval" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="days">Days</SelectItem>
-          <SelectItem value="weeks">Weeks</SelectItem>
-          <SelectItem value="months">Months</SelectItem>
-        </SelectContent>
-      </Select>
+    <div className="space-y-6">
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h3 className="text-2xl font-bold tracking-tight">
+              {data.reduce((sum, d) => sum + d.count, 0).toLocaleString()}
+            </h3>
+            {trendPercentage !== 0 && (
+              <span
+                className={`flex items-center gap-1 text-sm font-medium ${
+                  trendPercentage > 0 ? "text-emerald-600" : "text-rose-600"
+                }`}
+              >
+                <TrendingUp className={`h-4 w-4 ${trendPercentage < 0 ? "rotate-180" : ""}`} />
+                {Math.abs(trendPercentage)}%
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">Total enquiries over time</p>
+        </div>
 
-      {/* Chart */}
+        <Select value={interval} onValueChange={(v) => setInterval(v as TimeInterval)}>
+          <SelectTrigger className="w-[140px] h-9 border-border/50 hover:border-border transition-colors">
+            <SelectValue placeholder="Select interval" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="days">Daily</SelectItem>
+            <SelectItem value="weeks">Weekly</SelectItem>
+            <SelectItem value="months">Monthly</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <ChartContainer
-        className="h-[280px] sm:h-[320px] w-full"
+        className="h-[320px] w-full"
         config={{
           count: {
             label: "Enquiries",
-            color: "hsl(168 76% 36%)", // teal like your image
+            color: "hsl(142, 71%, 45%)",
           },
         }}
       >
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 10, right: 10, bottom: 40, left: 10 }}>
-            <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.25} />
-            <XAxis dataKey="date" tickFormatter={formatXAxis} angle={0} height={40} tick={{ fontSize: 12 }} />
-            <YAxis domain={[0, 40]} tick={{ fontSize: 12 }} allowDecimals={false} />
-            <ChartTooltip content={<ChartTooltipContent />} labelFormatter={formatXAxis} />
+          <LineChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
+            <defs>
+              <linearGradient id="colorEnquiries" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="hsl(142, 71%, 45%)" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="hsl(142, 71%, 45%)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} vertical={false} />
+            <XAxis
+              dataKey="date"
+              tickFormatter={formatXAxis}
+              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+              tickLine={false}
+              axisLine={{ stroke: "hsl(var(--border))", strokeWidth: 1 }}
+            />
+            <YAxis
+              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+              tickLine={false}
+              axisLine={{ stroke: "hsl(var(--border))", strokeWidth: 1 }}
+              allowDecimals={false}
+            />
+            <ChartTooltip
+              content={<ChartTooltipContent indicator="line" />}
+              labelFormatter={formatXAxis}
+              cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1, strokeDasharray: "5 5" }}
+            />
             <Line
-              type="natural"
+              type="monotone"
               dataKey="count"
-              stroke="hsl(168 76% 36%)"
-              strokeWidth={2.5}
-              dot={false}
-              activeDot={{ r: 5 }}
+              stroke="hsl(142, 71%, 45%)"
+              strokeWidth={3}
+              dot={{
+                r: 4,
+                fill: "hsl(142, 71%, 45%)",
+                strokeWidth: 2,
+                stroke: "hsl(var(--background))",
+              }}
+              activeDot={{
+                r: 6,
+                fill: "hsl(142, 71%, 45%)",
+                strokeWidth: 2,
+                stroke: "hsl(var(--background))",
+              }}
+              fill="url(#colorEnquiries)"
             />
           </LineChart>
         </ResponsiveContainer>
