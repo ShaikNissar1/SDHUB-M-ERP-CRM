@@ -41,12 +41,12 @@ export default function TeacherAssignmentsPage() {
     <main className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Assignments</h1>
-          <p className="text-muted-foreground mt-2">Create and manage student assignments</p>
+          <h1 className="text-3xl font-bold tracking-tight">Tasks</h1>
+          <p className="text-muted-foreground mt-2">Create and manage student tasks</p>
         </div>
         <Button className="gap-2">
           <Plus className="h-4 w-4" />
-          Create Assignment
+          Create Task
         </Button>
       </div>
 

@@ -127,7 +127,7 @@ export default function TeacherDashboardPage() {
           <Button variant="secondary">Manage Tests</Button>
         </Link>
         <Link href="/teacher/assignments">
-          <Button variant="secondary">Assignments</Button>
+          <Button variant="secondary">Tasks</Button>
         </Link>
         <Link href="/teacher/students">
           <Button variant="secondary">View Students</Button>
