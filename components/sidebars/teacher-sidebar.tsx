@@ -36,7 +36,7 @@ export function TeacherSidebar() {
     { href: "/teacher/students", label: "Students", icon: UsersIcon },
     { href: "/teacher/tests", label: "Tests & Results", icon: ClipboardCheckIcon },
     { href: "/teacher/performance", label: "Performance", icon: TrendingUpIcon },
-    { href: "/teacher/assignments", label: "Assignments", icon: FileTextIcon },
+    { href: "/teacher/assignments", label: "Tasks", icon: FileTextIcon },
     { href: "/teacher/messages", label: "Messages", icon: MessageSquareIcon },
     { href: "/teacher/settings", label: "Settings", icon: Settings2Icon },
   ]
