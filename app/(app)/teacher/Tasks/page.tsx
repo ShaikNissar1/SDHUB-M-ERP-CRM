@@ -6,11 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Plus, Upload, MessageSquare } from "lucide-react"
 
-const assignmentData = [
+const taskData = [
   {
     id: 1,
     module: "Module 1: Basics",
-    assignment: "Create a marketing plan",
+    task: "Create a marketing plan",
     dueDate: "2024-02-15",
     submitted: 18,
     total: 25,
@@ -19,7 +19,7 @@ const assignmentData = [
   {
     id: 2,
     module: "Module 2: Advanced",
-    assignment: "Case study analysis",
+    task: "Case study analysis",
     dueDate: "2024-02-20",
     submitted: 12,
     total: 25,
@@ -28,7 +28,7 @@ const assignmentData = [
   {
     id: 3,
     module: "Module 1: Basics",
-    assignment: "Research project",
+    task: "Research project",
     dueDate: "2024-02-10",
     submitted: 25,
     total: 25,
@@ -36,7 +36,7 @@ const assignmentData = [
   },
 ]
 
-export default function TeacherAssignmentsPage() {
+export default function TeacherTasksPage() {
   return (
     <main className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -52,7 +52,7 @@ export default function TeacherAssignmentsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Assignment Management</CardTitle>
+          <CardTitle>Task Management</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -60,7 +60,7 @@ export default function TeacherAssignmentsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Module</TableHead>
-                  <TableHead>Assignment</TableHead>
+                  <TableHead>Task</TableHead>
                   <TableHead>Due Date</TableHead>
                   <TableHead>Submitted</TableHead>
                   <TableHead>Status</TableHead>
@@ -68,10 +68,10 @@ export default function TeacherAssignmentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {assignmentData.map((row) => (
+                {taskData.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="font-medium">{row.module}</TableCell>
-                    <TableCell>{row.assignment}</TableCell>
+                    <TableCell>{row.task}</TableCell>
                     <TableCell>{new Date(row.dueDate).toLocaleDateString()}</TableCell>
                     <TableCell>
                       {row.submitted}/{row.total}

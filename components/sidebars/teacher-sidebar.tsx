@@ -23,7 +23,8 @@ import {
   BellIcon,
   UsersIcon,
   MessageSquareIcon,
-  ClipboardCheckIcon,
+  ClipboardListIcon,
+  FileBarChartIcon,
 } from "lucide-react"
 import Image from "next/image"
 
@@ -32,12 +33,13 @@ export function TeacherSidebar() {
   const items = [
     { href: "/teacher", label: "Dashboard", icon: HomeIcon },
     { href: "/teacher/batches", label: "My Batches", icon: LayersIcon },
-    { href: "/teacher/attendance", label: "Attendance", icon: CalendarCheck2Icon },
     { href: "/teacher/students", label: "Students", icon: UsersIcon },
-    { href: "/teacher/tests", label: "Tests & Results", icon: ClipboardCheckIcon },
-    { href: "/teacher/performance", label: "Performance", icon: TrendingUpIcon },
+    { href: "/teacher/attendance", label: "Attendance", icon: CalendarCheck2Icon },
+    { href: "/teacher/performance", label: "Student Performance", icon: TrendingUpIcon },
     { href: "/teacher/assignments", label: "Tasks", icon: FileTextIcon },
+    { href: "/teacher/tests", label: "Tests", icon: ClipboardListIcon },
     { href: "/teacher/messages", label: "Messages", icon: MessageSquareIcon },
+    { href: "/teacher/reports", label: "Reports", icon: FileBarChartIcon },
     { href: "/teacher/settings", label: "Settings", icon: Settings2Icon },
   ]
 
