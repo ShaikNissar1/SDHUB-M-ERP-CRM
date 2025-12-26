@@ -13,8 +13,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { CalendarDaysIcon, PlusIcon, Trash2Icon } from "lucide-react"
 import { useSupabaseCourses } from "@/lib/courses"
-import { getTeachers } from "@/lib/teachers"
-import { createBatch as createBatchSupabase, updateBatch as updateBatchSupabase } from "@/lib/supabase/batches"
+import { getTeachers } from "@/lib/supabase/teachers"
+import { createBatch as createBatchSupabase, updateBatch as updateBatchSupabase, assignTeacherToBatch, removeTeacherFromBatch, getBatchTeachers } from "@/lib/supabase/batches"
 import { getCourses } from "@/lib/supabase/courses"
 import { makeDefaultBatchName } from "@/lib/batches"
 import {
@@ -91,19 +91,20 @@ export function AddBatchDialog({
 
   const { courses: supabaseCourses } = useSupabaseCourses()
   const courseNames = supabaseCourses.map((c) => c.name)
-  const teachers = React.useMemo(() => getTeachers(), [])
+  const [teachers, setTeachers] = React.useState<any[]>([])
 
   const [saving, setSaving] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [coursesList, setCoursesList] = React.useState<Array<{ id: string; name: string }>>([])
 
   React.useEffect(() => {
-    async function loadCourses() {
-      const courses = await getCourses()
+    async function loadData() {
+      const [courses, teachersList] = await Promise.all([getCourses(), getTeachers()])
       setCoursesList(courses.map((c) => ({ id: c.id, name: c.name })))
+      setTeachers(teachersList)
     }
     if (open) {
-      loadCourses()
+      loadData()
     }
   }, [open])
 
@@ -127,11 +128,11 @@ export function AddBatchDialog({
       prev.map((m) =>
         m.moduleId === modId
           ? {
-              ...m,
-              teachers: checked
-                ? Array.from(new Set([...(m.teachers || []), teacherName]))
-                : (m.teachers || []).filter((t) => t !== teacherName),
-            }
+            ...m,
+            teachers: checked
+              ? Array.from(new Set([...(m.teachers || []), teacherName]))
+              : (m.teachers || []).filter((t) => t !== teacherName),
+          }
           : m,
       ),
     )
@@ -191,6 +192,7 @@ export function AddBatchDialog({
 
       console.log("[v0] Submitting batch data:", batchData)
 
+      let resultBatchId = initialValues?.id
       if (isEdit && initialValues?.id) {
         // Update existing batch
         console.log("[v0] Updating batch:", initialValues.id, batchData)
@@ -206,6 +208,29 @@ export function AddBatchDialog({
         console.log("[v0] Creating batch:", batchDataWithTempId)
         const result = await createBatchSupabase(batchDataWithTempId)
         console.log("[v0] Batch created:", result)
+        resultBatchId = result?.id
+      }
+
+      // Handle Teacher Assignments
+      if (resultBatchId) {
+        // Get unique teacher names from moduleAssignments
+        const uniqueTeacherNames = Array.from(new Set(moduleAssignments.flatMap(m => m.teachers || [])))
+        const teacherIdsToAssign = teachers
+          .filter(t => uniqueTeacherNames.includes(t.name))
+          .map(t => t.id)
+
+        if (isEdit) {
+          // For edit, we might want to sync. For now, let's just add new ones or handle carefully.
+          // Simple approach: remove all and re-assign (could be improved)
+          const existingTeachers = await getBatchTeachers(resultBatchId)
+          for (const et of existingTeachers) {
+            await removeTeacherFromBatch(resultBatchId, et.teacher_id)
+          }
+        }
+
+        for (const tid of teacherIdsToAssign) {
+          await assignTeacherToBatch(resultBatchId, tid)
+        }
       }
 
       // Call the original onSubmit if provided (for backward compatibility)
