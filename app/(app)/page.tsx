@@ -12,6 +12,7 @@ import { TopPerformingCoursesBar } from "@/components/charts/top-performing-cour
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { useSupabaseLeads } from "@/hooks/use-supabase-leads"
+import { BatchHighlights } from "@/components/batches/batch-highlights"
 
 export default function Page() {
   const [dueToday, setDueToday] = useState(0)
@@ -37,6 +38,7 @@ export default function Page() {
         </Card>
       </Link>
       <KPICards />
+      <BatchHighlights />
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>

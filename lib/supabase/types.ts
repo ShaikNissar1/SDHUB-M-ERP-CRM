@@ -51,6 +51,9 @@ export type Batch = {
   completed_at?: string
   notification_sent_at?: string
   created_at?: string
+  syllabus_completion_percentage?: number
+  current_module?: string
+  last_class_date?: string
   updated_at?: string
 }
 
