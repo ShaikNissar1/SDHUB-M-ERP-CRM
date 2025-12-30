@@ -11,6 +11,7 @@ interface Student {
   batch_id: string
   batch_number: string
   course_name: string
+  course_id: string
   status: string
   photo_url?: string
 }
@@ -35,7 +36,7 @@ export function StudentProvider({ children }: { children: ReactNode }) {
 
       const { data, error } = await supabase
         .from("students")
-        .select("id, name, email, phone, batch_id, batch_number, course_name, status, photo_url")
+        .select("id, name, email, phone, batch_id, batch_number, course_name, course_id, status, photo_url")
         .eq("status", "Active")
         .order("name")
 
