@@ -15,23 +15,27 @@ import {
 } from "@/components/ui/sidebar"
 import {
   HomeIcon,
-  BookOpenIcon,
+  UserIcon,
   CalendarCheck2Icon,
-  ClipboardCheckIcon,
+  ListTodoIcon,
+  TrendingUpIcon,
+  BookOpenIcon,
   AwardIcon,
   Settings2Icon,
-  BellIcon,
 } from "lucide-react"
 import Image from "next/image"
 
 export function StudentSidebar() {
   const pathname = usePathname()
+
   const items = [
     { href: "/student", label: "Dashboard", icon: HomeIcon },
-    { href: "/student/courses", label: "My Courses", icon: BookOpenIcon },
-    { href: "/student/attendance", label: "Attendance", icon: CalendarCheck2Icon },
-    { href: "/student/exams", label: "Exams", icon: ClipboardCheckIcon },
-    { href: "/student/certificates", label: "Certificates", icon: AwardIcon },
+    { href: "/student/profile", label: "My Profile", icon: UserIcon },
+    { href: "/student/attendance", label: "My Attendance", icon: CalendarCheck2Icon },
+    { href: "/student/tasks", label: "My Tasks", icon: ListTodoIcon },
+    { href: "/student/performance", label: "My Performance", icon: TrendingUpIcon },
+    { href: "/student/courses", label: "My Course", icon: BookOpenIcon },
+    { href: "/student/certificates", label: "My Certificates", icon: AwardIcon },
     { href: "/student/settings", label: "Settings", icon: Settings2Icon },
   ]
 
@@ -50,7 +54,7 @@ export function StudentSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Student Portal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
@@ -70,10 +74,7 @@ export function StudentSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <div className="px-2 text-xs text-muted-foreground flex items-center gap-2">
-          <BellIcon className="h-4 w-4" />
-          Notifications enabled
-        </div>
+        <div className="px-2 text-xs text-muted-foreground">Student Panel v1.0</div>
       </SidebarFooter>
     </>
   )

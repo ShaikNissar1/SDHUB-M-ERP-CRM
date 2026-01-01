@@ -7,11 +7,12 @@ import { LeadStatusDonut } from "@/components/charts/lead-status-donut"
 import { EnquiriesByCourseBar } from "@/components/charts/enquiries-per-course-bar"
 import { EnquiriesOverTimeLine } from "@/components/charts/enquiries-over-time-line"
 import { AttendancePerCourseBar } from "@/components/charts/attendance-per-course-bar"
-import { EnrollmentPerCourseDonut } from "@/components/charts/enrollment-per-course-donut"
-import { TopPerformingCoursesBar } from "@/components/charts/top-performing-courses-bar"
+// import { EnrollmentPerCourseDonut } from "@/components/charts/enrollment-per-course-donut"
+// import { TopPerformingCoursesBar } from "@/components/charts/top-performing-courses-bar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { useSupabaseLeads } from "@/hooks/use-supabase-leads"
+import { BatchHighlights } from "@/components/batches/batch-highlights"
 
 export default function Page() {
   const [dueToday, setDueToday] = useState(0)
@@ -37,6 +38,7 @@ export default function Page() {
         </Card>
       </Link>
       <KPICards />
+      <BatchHighlights />
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -77,7 +79,7 @@ export default function Page() {
             <p className="text-xs text-muted-foreground">Student enrollment distribution across courses</p>
           </CardHeader>
           <CardContent className="overflow-hidden">
-            <EnrollmentPerCourseDonut />
+            {/* <EnrollmentPerCourseDonut /> */}
           </CardContent>
         </Card>
         <Card>
@@ -98,7 +100,7 @@ export default function Page() {
             <p className="text-xs text-muted-foreground">Courses ranked by enrollment and completion metrics</p>
           </CardHeader>
           <CardContent className="overflow-hidden">
-            <TopPerformingCoursesBar />
+            {/* <TopPerformingCoursesBar /> */}
           </CardContent>
         </Card>
       </section>

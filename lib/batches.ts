@@ -24,6 +24,13 @@ export type Batch = {
   moduleAssignments?: BatchModuleAssignment[]
   completedAt?: string // ISO date when batch was auto-completed
   notificationSentAt?: string // ISO date when 7-day pre-completion notification was sent
+  // Supabase compatibility fields
+  course_name?: string
+  start_date?: string
+  end_date?: string
+  max_students?: number
+  total_students?: number
+  trainer_name?: string
 }
 
 const batchesMock: Batch[] = [
