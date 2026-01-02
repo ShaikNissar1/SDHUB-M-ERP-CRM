@@ -44,6 +44,7 @@ export default function BatchesTable({ rows, onEdit, onDelete }: Props) {
               <TableHead>Duration</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Total Students</TableHead>
+              {/* <TableHead>Available</TableHead> */}
               <TableHead>Modules & Teachers</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -95,6 +96,9 @@ export default function BatchesTable({ rows, onEdit, onDelete }: Props) {
                     </Badge>
                   </TableCell>
                   <TableCell>{row.total_students || row.totalStudents || 0}</TableCell>
+                  {/* <TableCell>
+                    {Math.max(0, (row.max_students || row.maxStudents || 0) - (row.total_students || row.totalStudents || 0))}
+                  </TableCell> */}
                   <TableCell className="max-w-[260px]">
                     <Button
                       variant="outline"
