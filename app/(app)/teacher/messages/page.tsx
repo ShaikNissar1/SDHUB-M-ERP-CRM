@@ -1,287 +1,330 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { useState } from "react"
-import { Send, Search, MessageSquare, Bell, User } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Send, MessageSquare, Bell, Reply, Users } from "lucide-react"
+import TeacherMessageList from "@/components/teacher/teacher-message-list"
+import TeacherMessageThread from "@/components/teacher/teacher-message-thread"
 
-const messageHistory = [
-  {
-    id: 1,
-    type: "announcement",
-    recipient: "Batch B001 - Digital Marketing",
-    recipientType: "batch",
-    subject: "Class Schedule Change",
-    message:
-      "Tomorrow's class will be held online due to facility maintenance. Join link will be shared 15 mins before class.",
-    timestamp: new Date(Date.now() - 3600000),
-    read: true,
-  },
-  {
-    id: 2,
-    type: "reminder",
-    recipient: "Batch B002 - Tally ERP",
-    recipientType: "batch",
-    subject: "Assignment Deadline Reminder",
-    message: "This is a reminder that Module 2 assignment is due tomorrow at 5 PM. Please submit on time.",
-    timestamp: new Date(Date.now() - 7200000),
-    read: true,
-  },
-  {
-    id: 3,
-    type: "message",
-    recipient: "Asha Verma",
-    recipientType: "student",
-    subject: "Good Performance",
-    message: "Congratulations on scoring 82 in the recent test! Keep up the good work.",
-    timestamp: new Date(Date.now() - 86400000),
-    read: true,
-  },
-  {
-    id: 4,
-    type: "message",
-    recipient: "Rohit Kumar",
-    recipientType: "student",
-    subject: "Need to Improve",
-    message:
-      "I noticed you scored 65 in the last test. Let's schedule a doubt clearing session. Please reply with your available time.",
-    timestamp: new Date(Date.now() - 172800000),
-    read: false,
-  },
-]
+interface StudentMessage {
+  id: string
+  studentName: string
+  studentId: string
+  subject: string
+  lastMessage: string
+  timestamp: Date
+  unread: boolean
+  messages: {
+    id: string
+    sender: "teacher" | "student"
+    message: string
+    timestamp: Date
+  }[]
+}
+
+interface AdminMessage {
+  id: string
+  subject: string
+  message: string
+  timestamp: Date
+  read: boolean
+}
 
 export default function TeacherMessagesPage() {
-  const [message, setMessage] = useState("")
-  const [recipient, setRecipient] = useState("batch")
-  const [selectedBatchOrStudent, setSelectedBatchOrStudent] = useState("")
-  const [subject, setSubject] = useState("")
-  const [searchTerm, setSearchTerm] = useState("")
+  const [announcementText, setAnnouncementText] = useState("")
+  const [selectedBatch, setSelectedBatch] = useState("")
+  const [selectedStudent, setSelectedStudent] = useState<StudentMessage | null>(null)
+  const [replyText, setReplyText] = useState("")
 
-  const handleSendMessage = () => {
-    if (message.trim() && selectedBatchOrStudent && subject.trim()) {
-      console.log("[v0] Sending message:", {
-        recipient,
-        to: selectedBatchOrStudent,
-        subject,
-        message,
-      })
-      // Reset form
-      setMessage("")
-      setSubject("")
-      setSelectedBatchOrStudent("")
+  // Mock data for student messages
+  const studentMessages: StudentMessage[] = [
+    {
+      id: "1",
+      studentName: "Asha Verma",
+      studentId: "CS001",
+      subject: "Doubt in Module 2",
+      lastMessage: "Hi teacher, I'm having trouble understanding the database concepts...",
+      timestamp: new Date(Date.now() - 3600000),
+      unread: true,
+      messages: [
+        {
+          id: "m1",
+          sender: "student",
+          message: "Hi teacher, I'm having trouble understanding the database concepts in Module 2. Can you please explain the normalization process?",
+          timestamp: new Date(Date.now() - 3600000),
+        },
+      ],
+    },
+    {
+      id: "2",
+      studentName: "Rohit Kumar",
+      studentId: "CS002",
+      subject: "Assignment Extension",
+      lastMessage: "I need an extension for the assignment due to personal reasons...",
+      timestamp: new Date(Date.now() - 7200000),
+      unread: false,
+      messages: [
+        {
+          id: "m2",
+          sender: "student",
+          message: "Hi teacher, I need an extension for the assignment due to personal reasons. Is it possible to get 2 more days?",
+          timestamp: new Date(Date.now() - 7200000),
+        },
+        {
+          id: "m3",
+          sender: "teacher",
+          message: "I understand. Please submit by tomorrow evening. Make sure to complete all requirements.",
+          timestamp: new Date(Date.now() - 7000000),
+        },
+      ],
+    },
+    {
+      id: "3",
+      studentName: "Sara Khan",
+      studentId: "CS003",
+      subject: "Good Performance",
+      lastMessage: "Thank you for the feedback on my recent test...",
+      timestamp: new Date(Date.now() - 86400000),
+      unread: false,
+      messages: [
+        {
+          id: "m4",
+          sender: "teacher",
+          message: "Congratulations on scoring 88% in the recent test! Your understanding of the concepts is excellent.",
+          timestamp: new Date(Date.now() - 86400000),
+        },
+        {
+          id: "m5",
+          sender: "student",
+          message: "Thank you teacher! I'll keep working hard.",
+          timestamp: new Date(Date.now() - 86000000),
+        },
+      ],
+    },
+  ]
+
+  // Mock data for admin messages
+  const adminMessages: AdminMessage[] = [
+    {
+      id: "1",
+      subject: "Faculty Meeting Tomorrow",
+      message: "All faculty members are required to attend the monthly meeting tomorrow at 10 AM in the conference room.",
+      timestamp: new Date(Date.now() - 1800000),
+      read: false,
+    },
+    {
+      id: "2",
+      subject: "New Course Material Available",
+      message: "Updated course materials for Digital Marketing have been uploaded to the portal. Please review and incorporate in your teaching.",
+      timestamp: new Date(Date.now() - 86400000),
+      read: true,
+    },
+    {
+      id: "3",
+      subject: "Holiday Notice",
+      message: "College will remain closed on January 26th for Republic Day celebrations.",
+      timestamp: new Date(Date.now() - 172800000),
+      read: true,
+    },
+  ]
+
+  const handleSendAnnouncement = () => {
+    if (announcementText.trim() && selectedBatch) {
+      console.log("Sending announcement:", { batch: selectedBatch, message: announcementText })
+      setAnnouncementText("")
+      setSelectedBatch("")
     }
   }
 
-  const filteredMessages = messageHistory.filter(
-    (msg) =>
-      msg.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      msg.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      msg.recipient.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
-
-  const getMessageTypeIcon = (type: string) => {
-    switch (type) {
-      case "announcement":
-        return <Bell className="h-4 w-4" />
-      case "reminder":
-        return <Bell className="h-4 w-4" />
-      case "message":
-        return <MessageSquare className="h-4 w-4" />
-      default:
-        return <MessageSquare className="h-4 w-4" />
+  const handleSendReply = () => {
+    if (replyText.trim() && selectedStudent) {
+      console.log("Sending reply to student:", selectedStudent.studentName, replyText)
+      setReplyText("")
     }
   }
 
-  const getMessageTypeBadge = (type: string) => {
-    const colors = {
-      announcement: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-      reminder: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-      message: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    }
-    return colors[type as keyof typeof colors] || colors.message
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  }
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString([], { month: "short", day: "numeric" })
   }
 
   return (
     <main className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-balance">Messages</h1>
-          <p className="text-muted-foreground mt-2">Communicate with your students and batches</p>
-        </div>
+      <div>
+        <h1 className="text-2xl md:text-3xl font-semibold">Communication</h1>
+        <p className="text-muted-foreground mt-1">
+          Send announcements and communicate with students
+        </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Messages</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{messageHistory.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Sent this week</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Announcements</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{messageHistory.filter((m) => m.type === "announcement").length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Batch-wide</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Individual Messages</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {messageHistory.filter((m) => m.recipientType === "student").length}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Personal</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Unread Replies</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{messageHistory.filter((m) => !m.read).length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Pending</p>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs defaultValue="announcements" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="announcements">Batch Announcements</TabsTrigger>
+          <TabsTrigger value="students">Student Messages</TabsTrigger>
+          <TabsTrigger value="admin">Admin Messages</TabsTrigger>
+        </TabsList>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Send Message Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Send Message / Announcement</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Send To</Label>
-              <Select value={recipient} onValueChange={setRecipient}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select recipient type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="batch">Entire Batch</SelectItem>
-                  <SelectItem value="student">Individual Student</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        {/* Batch Announcements Tab */}
+        <TabsContent value="announcements" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Send Batch Announcement
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Send announcements to entire batches
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Select Batch</label>
+                <Select value={selectedBatch} onValueChange={setSelectedBatch}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a batch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CS-2024-A">CS-2024-A (Computer Science)</SelectItem>
+                    <SelectItem value="DM-2024-B">DM-2024-B (Digital Marketing)</SelectItem>
+                    <SelectItem value="TE-2024-C">TE-2024-C (Tally ERP)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2">
-              <Label>{recipient === "batch" ? "Select Batch" : "Select Student"}</Label>
-              <Select value={selectedBatchOrStudent} onValueChange={setSelectedBatchOrStudent}>
-                <SelectTrigger>
-                  <SelectValue placeholder={recipient === "batch" ? "Choose batch" : "Choose student"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {recipient === "batch" ? (
-                    <>
-                      <SelectItem value="B001">Batch B001 - Digital Marketing</SelectItem>
-                      <SelectItem value="B002">Batch B002 - Tally ERP</SelectItem>
-                      <SelectItem value="B003">Batch B003 - Advanced Excel</SelectItem>
-                    </>
-                  ) : (
-                    <>
-                      <SelectItem value="asha">Asha Verma</SelectItem>
-                      <SelectItem value="rohit">Rohit Kumar</SelectItem>
-                      <SelectItem value="sara">Sara Khan</SelectItem>
-                      <SelectItem value="vikram">Vikram Singh</SelectItem>
-                      <SelectItem value="priya">Priya Sharma</SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Subject</Label>
-              <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Enter message subject" />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Message</Label>
-              <Textarea
-                placeholder="Type your message here..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="min-h-32"
-              />
-            </div>
-
-            <Button
-              onClick={handleSendMessage}
-              className="w-full gap-2"
-              disabled={!message.trim() || !selectedBatchOrStudent || !subject.trim()}
-            >
-              <Send className="h-4 w-4" />
-              Send Message
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Message History Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Message History</CardTitle>
-              <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search messages..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Announcement Message</label>
+                <Textarea
+                  placeholder="Type your announcement here..."
+                  value={announcementText}
+                  onChange={(e) => setAnnouncementText(e.target.value)}
+                  className="min-h-32"
                 />
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3 max-h-[600px] overflow-y-auto">
-            {filteredMessages.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">No messages found</div>
-            ) : (
-              filteredMessages.map((msg) => (
-                <div key={msg.id} className="rounded-lg border p-4 space-y-2 hover:bg-muted/50 transition-colors">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <div className="mt-1">{getMessageTypeIcon(msg.type)}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium truncate">{msg.subject}</span>
-                          <Badge className={getMessageTypeBadge(msg.type)}>{msg.type}</Badge>
+
+              <Button
+                onClick={handleSendAnnouncement}
+                className="w-full gap-2"
+                disabled={!announcementText.trim() || !selectedBatch}
+              >
+                <Send className="h-4 w-4" />
+                Send Announcement
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Student Messages Tab */}
+        <TabsContent value="students" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Student Inbox */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  Student Messages
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {studentMessages.length} conversation{studentMessages.length !== 1 ? "s" : ""}
+                </p>
+              </CardHeader>
+              <CardContent>
+                <TeacherMessageList
+                  messages={studentMessages}
+                  selectedMessageId={selectedStudent?.id || null}
+                  onMessageSelect={setSelectedStudent}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Message Thread */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Reply className="h-5 w-5" />
+                  {selectedStudent ? selectedStudent.studentName : "Select a conversation"}
+                </CardTitle>
+                {selectedStudent && (
+                  <p className="text-sm text-muted-foreground">
+                    {selectedStudent.studentId} • {selectedStudent.messages.length} message{selectedStudent.messages.length !== 1 ? "s" : ""}
+                  </p>
+                )}
+              </CardHeader>
+              <CardContent>
+                <TeacherMessageThread
+                  selectedMessage={selectedStudent}
+                  replyText={replyText}
+                  onReplyTextChange={setReplyText}
+                  onSendReply={handleSendReply}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Admin Messages Tab */}
+        <TabsContent value="admin" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Admin Messages
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {adminMessages.length} message{adminMessages.length !== 1 ? "s" : ""} from administration
+              </p>
+            </CardHeader>
+            <CardContent>
+              {adminMessages.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">No admin messages</p>
+                  <p className="text-sm">Administrative messages will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {adminMessages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`p-4 rounded-lg border ${
+                        !message.read ? "bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800" : ""
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-medium">{message.subject}</h3>
+                            {!message.read && (
+                              <Badge variant="secondary" className="text-xs">
+                                Unread
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-2">{message.message}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{formatDate(message.timestamp)}</span>
+                            <span>•</span>
+                            <span>{formatTime(message.timestamp)}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                          <User className="h-3 w-3" />
-                          <span className="truncate">{msg.recipient}</span>
-                        </div>
-                        <p className="text-sm line-clamp-2">{msg.message}</p>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {msg.timestamp.toLocaleDateString([], { month: "short", day: "numeric" })}
-                      </span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </main>
   )
 }
