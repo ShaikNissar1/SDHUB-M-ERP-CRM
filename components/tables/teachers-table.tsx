@@ -42,21 +42,65 @@ export function TeachersTable() {
   const [status, setStatus] = useState<StatusFilter>("all")
   const [addOpen, setAddOpen] = useState(false)
   const [assignOpenId, setAssignOpenId] = useState<string | null>(null)
-  const courses = getCourses?.() || []
-  const batches = getBatches?.() || []
+  const [courses, setCourses] = useState<any[]>([])
+  const [batches, setBatches] = useState<any[]>([])
   const router = useRouter()
 
   useEffect(() => {
-    const load = () => setTeachers(getTeachers())
-    load()
-    const onChange = () => load()
-    window.addEventListener("teachers:changed", onChange)
-    return () => window.removeEventListener("teachers:changed", onChange)
+    async function loadData() {
+      const load = () => setTeachers(getTeachers())
+      load()
+      
+      // Fetch real courses and batches from Supabase
+      try {
+        const { createBrowserClient } = await import("@/lib/supabase/client")
+        const supabase = createBrowserClient()
+        
+        // Fetch courses
+        const { data: coursesData } = await supabase
+          .from("courses")
+          .select("id, name")
+          .order("name")
+        
+        if (coursesData) {
+          setCourses(coursesData)
+          console.log("[v0] Loaded courses for teacher form:", coursesData.length)
+        }
+        
+        // Fetch batches
+        const { data: batchesData } = await supabase
+          .from("batches")
+          .select("id, name, course_id")
+          .order("name")
+        
+        if (batchesData) {
+          setBatches(batchesData)
+          console.log("[v0] Loaded batches for teacher form:", batchesData.length)
+        }
+      } catch (error) {
+        console.error("[v0] Error loading courses/batches:", error)
+        // Fallback to localStorage
+        setCourses((getCourses?.() || []).map((name, idx) => ({ id: `local-${idx}`, name })))
+        setBatches((getBatches?.() || []).map((b: any) => ({ id: b.id, name: b.name, course_id: null })))
+      }
+      
+      const onChange = () => load()
+      window.addEventListener("teachers:changed", onChange)
+      return () => window.removeEventListener("teachers:changed", onChange)
+    }
+    
+    loadData()
   }, [])
 
   const roles = useMemo(() => Array.from(new Set(teachers.map((t) => t.role || "Unknown"))), [teachers])
-  const courseOptions = useMemo(() => Array.from(new Set(courses.map((c: any) => c.name))).filter(Boolean), [courses])
-  const batchOptions = useMemo(() => Array.from(new Set(batches.map((b: any) => b.name))).filter(Boolean), [batches])
+  const courseOptions = useMemo(() => {
+    const courseNames = courses.map((c: any) => c.name).filter(Boolean)
+    return Array.from(new Set(courseNames))
+  }, [courses])
+  const batchOptions = useMemo(() => {
+    const batchNames = batches.map((b: any) => b.name).filter(Boolean)
+    return Array.from(new Set(batchNames))
+  }, [batches])
 
   const filtered = teachers.filter((t) => {
     const byRole = role === "all" || (t.role || "Unknown") === role
@@ -390,6 +434,8 @@ export function TeachersTable() {
                             value={assignFor?.courseName || ""}
                             onValueChange={(v) => {
                               updateTeacher(t.id, { courseName: v })
+                              // Find the course ID for the selected course name
+                              const selectedCourse = courses.find((c: any) => c.name === v)
                               setTeachers((prev) =>
                                 prev.map((row) =>
                                   row.id === t.id
@@ -400,12 +446,14 @@ export function TeachersTable() {
                                           const current = row.batchName || ""
                                           if (!current) return ""
                                           const found = batches.find((x: any) => x.name === current)
-                                          return found?.course === v ? current : ""
+                                          // Check if batch belongs to the selected course
+                                          return found?.course_id === selectedCourse?.id ? current : ""
                                         })(),
                                       }
                                     : row,
                                 ),
                               )
+                              console.log("[v0] Selected course:", v, "Course ID:", selectedCourse?.id)
                             }}
                           >
                             <SelectTrigger>
@@ -427,13 +475,16 @@ export function TeachersTable() {
                             onValueChange={(v) => {
                               updateTeacher(t.id, { batchName: v })
                               const batchObj = batches.find((x: any) => x.name === v)
+                              // Find course name from course_id
+                              const courseNameFromBatch = courses.find((c: any) => c.id === batchObj?.course_id)?.name
                               setTeachers((prev) =>
                                 prev.map((row) =>
                                   row.id === t.id
-                                    ? { ...row, batchName: v, courseName: batchObj?.course || row.courseName }
+                                    ? { ...row, batchName: v, courseName: courseNameFromBatch || row.courseName }
                                     : row,
                                 ),
                               )
+                              console.log("[v0] Selected batch:", v, "Batch course_id:", batchObj?.course_id)
                             }}
                           >
                             <SelectTrigger>
@@ -444,7 +495,9 @@ export function TeachersTable() {
                                 .filter((b) => {
                                   const found = batches.find((x: any) => x.name === b)
                                   if (!assignFor?.courseName) return true
-                                  return found?.course === assignFor?.courseName
+                                  // Find the course ID for the selected course name
+                                  const selectedCourse = courses.find((c: any) => c.name === assignFor?.courseName)
+                                  return found?.course_id === selectedCourse?.id
                                 })
                                 .map((b) => (
                                   <SelectItem key={b} value={b}>
