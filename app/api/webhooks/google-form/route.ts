@@ -27,15 +27,20 @@ export async function POST(request: NextRequest) {
       },
     )
 
+    // Debug: Log all incoming fields to identify the correct mapping
+    console.log("[v0] All form fields received:", JSON.stringify(body, null, 2))
+
+    // Map form fields - adjust field names to match your actual Google Form
+    // Common variations: field names can use underscores, spaces, or camelCase
     const leadData = {
-      name: body.full_name || body["Full Name"] || "",
-      email: body.email || body["Email"] || "",
-      phone: body.contact || body["Contact"] || "",
-      course: body.course_interested || body["Course Interested"] || "",
-      qualification: body.education_qualification || body["Education Qualification"] || "",
-      source: body.how_did_you_hear || body["How did you hear about us?"] || "Google Form",
-      status: "New",
-      remarks: `Age: ${body.age || "N/A"}, Gender: ${body.gender || "N/A"}, Area: ${body.residence_area || "N/A"}`,
+      name: body.name || body.full_name || body["Full Name"] || body["Name"] || "",
+      email: body.email || body["Email"] || body["email_address"] || "",
+      phone: body.phone || body.contact || body["Contact"] || body["Phone"] || body["phone_number"] || "",
+      course: body.course || body.course_interested || body["Course Interested"] || body["Course"] || "",
+      qualification: body.qualification || body.education_qualification || body["Education Qualification"] || body["Qualification"] || "",
+      source: body.source || body.how_did_you_hear || body["How did you hear about us?"] || body["Source"] || "Google Form",
+      status: "New Enquiry",
+      remarks: body.remarks || body.additional_remarks || body["Remarks"] || `Age: ${body.age || "N/A"}, Gender: ${body.gender || "N/A"}, Area: ${body.residence_area || "N/A"}`,
     }
 
     console.log("[v0] Mapped lead data:", leadData)
