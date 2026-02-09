@@ -112,6 +112,8 @@ export function LeadsTable() {
     source: "Online",
   })
   const [studentsWithDocs, setStudentsWithDocs] = useState<Set<string>>(new Set())
+  const [page, setPage] = useState<number>(1)
+  const [pageSize, setPageSize] = useState<number>(30)
 
   const router = useRouter()
   const search = useSearchParams()
@@ -120,6 +122,23 @@ export function LeadsTable() {
   useEffect(() => {
     setRows(supabaseLeads)
   }, [supabaseLeads])
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("sdhub:leads:pageSize")
+      if (raw) setPageSize(Number(raw) || 30)
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("sdhub:leads:pageSize", String(pageSize))
+    } catch {
+      /* ignore */
+    }
+  }, [pageSize])
 
   useEffect(() => {
     setTestResults(loadTestResults())
@@ -265,6 +284,33 @@ export function LeadsTable() {
       return textMatch && statusMatch && courseMatch && sourceMatch && dateMatch
     })
   }, [supabaseLeads, q, filterStatus, filterCourse, filterSource, filterDate, courseOptionsSet])
+
+  // reset to first page when filters/search change
+  useEffect(() => {
+    setPage(1)
+  }, [q, filterStatus, filterCourse, filterSource, filterDate])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const paginated = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return filtered.slice(start, start + pageSize)
+  }, [filtered, page, pageSize])
+
+  const pagesToRender = useMemo(() => {
+    const pages: Array<number | string> = []
+    if (totalPages <= 10) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i)
+    } else {
+      pages.push(1)
+      if (page > 4) pages.push("...")
+      const start = Math.max(2, page - 2)
+      const end = Math.min(totalPages - 1, page + 2)
+      for (let i = start; i <= end; i++) pages.push(i)
+      if (page < totalPages - 3) pages.push("...")
+      pages.push(totalPages)
+    }
+    return pages
+  }, [totalPages, page])
 
   const updateLeadInSupabase = async (leadId: string, updates: Partial<Lead>) => {
     const supabase = getSupabaseClient()
@@ -474,6 +520,18 @@ export function LeadsTable() {
             </div>
           </DialogContent>
         </Dialog>
+        <Select value={String(pageSize)} onValueChange={(v: any) => { setPageSize(Number(v)); setPage(1) }}>
+          <SelectTrigger className="w-[120px]">
+            <SelectValue placeholder={`Per page: ${pageSize}`} />
+          </SelectTrigger>
+          <SelectContent>
+            {[20, 30, 40, 50, 60].map((n) => (
+              <SelectItem key={n} value={String(n)}>
+                {n} / page
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="rounded-lg border overflow-x-auto">
@@ -492,7 +550,7 @@ export function LeadsTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((r, idx) => {
+            {paginated.map((r, idx) => {
               const entranceDisplay = r.entrance_score ?? entranceScoreByEmail.get(r.email || "") ?? "-"
               const finalDisplay = r.final_score ?? finalScoreByEmail.get(r.email || "") ?? "-"
               if ((r.entrance_score || r.final_score) && !r.email?.includes("example")) {
@@ -508,7 +566,7 @@ export function LeadsTable() {
                   key={r.id}
                   className={`hover:bg-muted/40 ${needsDocuments ? "bg-red-50 hover:bg-red-100" : ""}`}
                 >
-                  <TableCell className="font-medium">{idx + 1}</TableCell>
+                  <TableCell className="font-medium">{(page - 1) * pageSize + idx + 1}</TableCell>
                   <TableCell className="font-medium">{r.name}</TableCell>
                   <TableCell>{r.phone}</TableCell>
                   <TableCell>{r.course}</TableCell>
@@ -756,18 +814,44 @@ export function LeadsTable() {
       <Pagination>
         <PaginationContent>
           <PaginationItem>
-            <PaginationPrevious href="#" />
+            <PaginationPrevious
+              href="#"
+              onClick={(e: any) => {
+                e.preventDefault()
+                setPage((p) => Math.max(1, p - 1))
+              }}
+            />
           </PaginationItem>
+
+          {pagesToRender.map((p, i) =>
+            typeof p === "number" ? (
+              <PaginationItem key={i}>
+                <PaginationLink
+                  href="#"
+                  isActive={p === page}
+                  onClick={(e: any) => {
+                    e.preventDefault()
+                    setPage(p)
+                  }}
+                >
+                  {p}
+                </PaginationLink>
+              </PaginationItem>
+            ) : (
+              <PaginationItem key={`e-${i}`}>
+                <span className="inline-flex items-center px-3">{p}</span>
+              </PaginationItem>
+            ),
+          )}
+
           <PaginationItem>
-            <PaginationLink href="#" isActive>
-              1
-            </PaginationLink>
-          </PaginationItem>
-          <PaginationItem>
-            <PaginationLink href="#">2</PaginationLink>
-          </PaginationItem>
-          <PaginationItem>
-            <PaginationNext href="#" />
+            <PaginationNext
+              href="#"
+              onClick={(e: any) => {
+                e.preventDefault()
+                setPage((p) => Math.min(totalPages, p + 1))
+              }}
+            />
           </PaginationItem>
         </PaginationContent>
       </Pagination>

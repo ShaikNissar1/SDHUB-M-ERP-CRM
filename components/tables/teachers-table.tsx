@@ -41,6 +41,7 @@ export function TeachersTable() {
   const [rating, setRating] = useState<RatingRange>("all")
   const [status, setStatus] = useState<StatusFilter>("all")
   const [addOpen, setAddOpen] = useState(false)
+  const [addCourse, setAddCourse] = useState<string>("")
   const [assignOpenId, setAssignOpenId] = useState<string | null>(null)
   const [courses, setCourses] = useState<any[]>([])
   const [batches, setBatches] = useState<any[]>([])
@@ -210,7 +211,10 @@ export function TeachersTable() {
           <Button variant="outline" size="sm" onClick={() => exportCsv("teachers.csv", filtered)}>
             <Download className="h-4 w-4 mr-2" /> Export Data
           </Button>
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
+          <Dialog open={addOpen} onOpenChange={(val) => {
+            setAddOpen(val)
+            if (val) setAddCourse("")
+          }}>
             <DialogTrigger asChild>
               <Button size="sm">
                 <Plus className="h-4 w-4 mr-2" /> Add New Staff
@@ -247,6 +251,10 @@ export function TeachersTable() {
                     onValueChange={(v) => {
                       const input = document.querySelector<HTMLInputElement>('input[name="course"]')
                       if (input) input.value = v
+                      setAddCourse(v)
+                      // Clear batch selection when course changes
+                      const batchInput = document.querySelector<HTMLInputElement>('input[name="batch"]')
+                      if (batchInput) batchInput.value = ""
                     }}
                   >
                     <SelectTrigger>
@@ -265,6 +273,7 @@ export function TeachersTable() {
                 <div className="grid gap-1">
                   <Label htmlFor="batch">Assigned Batch</Label>
                   <Select
+                    key={`add-batch-${addCourse}`}
                     name="batch"
                     onValueChange={(v) => {
                       const input = document.querySelector<HTMLInputElement>('input[name="batch"]')
@@ -275,11 +284,18 @@ export function TeachersTable() {
                       <SelectValue placeholder="Select a batch" />
                     </SelectTrigger>
                     <SelectContent>
-                      {batchOptions.map((b) => (
-                        <SelectItem key={b} value={b}>
-                          {b}
-                        </SelectItem>
-                      ))}
+                      {batchOptions
+                        .filter((b) => {
+                          if (!addCourse) return true
+                          const batchObj = batches.find((x: any) => x.name === b)
+                          const courseObj = courses.find((c: any) => c.name === addCourse)
+                          return batchObj?.course_id === courseObj?.id
+                        })
+                        .map((b) => (
+                          <SelectItem key={b} value={b}>
+                            {b}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                   <Input type="hidden" name="batch" />
