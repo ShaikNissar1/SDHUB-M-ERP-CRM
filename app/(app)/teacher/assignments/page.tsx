@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { CreateAssignmentDialog } from "@/components/teacher/create-assignment-dialog"
 import { SubmissionsTable } from "@/components/teacher/submissions-table"
 import { Eye, Calendar, Users } from "lucide-react"
+import { useTeacher } from "@/lib/contexts/teacher-context"
 
 interface Assignment {
   id: string
@@ -31,61 +32,14 @@ interface Submission {
 }
 
 export default function TeacherAssignmentsPage() {
+  const { selectedTeacher, isLoading } = useTeacher()
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null)
 
-  // Mock assignments data - replace with actual data fetching
-  const [assignments, setAssignments] = useState<Assignment[]>([
-    {
-      id: "1",
-      title: "Data Structures Implementation",
-      description: "Implement basic data structures in your preferred programming language",
-      batchName: "CS-2024-A",
-      batchId: "batch-1",
-      dueDate: "2024-01-15",
-      totalStudents: 25,
-      submittedCount: 18,
-      status: "Active",
-    },
-    {
-      id: "2",
-      title: "Algorithm Analysis Report",
-      description: "Analyze and compare different sorting algorithms",
-      batchName: "CS-2024-B",
-      batchId: "batch-2",
-      dueDate: "2024-01-10",
-      totalStudents: 22,
-      submittedCount: 22,
-      status: "Completed",
-    },
-    {
-      id: "3",
-      title: "Database Design Project",
-      description: "Design a database schema for a library management system",
-      batchName: "CS-2024-C",
-      batchId: "batch-3",
-      dueDate: "2024-01-20",
-      totalStudents: 28,
-      submittedCount: 15,
-      status: "Active",
-    },
-  ])
+  // TODO: Fetch assignments from Supabase based on selectedTeacher.id
+  const [assignments, setAssignments] = useState<Assignment[]>([])
 
-  // Mock submissions data - replace with actual data fetching
-  const mockSubmissions: Record<string, Submission[]> = {
-    "1": [
-      { id: "s1", studentName: "John Doe", submittedAt: "2024-01-12T10:30:00", status: "Submitted" },
-      { id: "s2", studentName: "Jane Smith", submittedAt: "2024-01-11T14:20:00", status: "Graded", marks: 85, remarks: "Good implementation, could improve documentation" },
-      { id: "s3", studentName: "Mike Johnson", submittedAt: "2024-01-13T09:15:00", status: "Submitted" },
-    ],
-    "2": [
-      { id: "s4", studentName: "Sarah Wilson", submittedAt: "2024-01-08T16:45:00", status: "Graded", marks: 92, remarks: "Excellent analysis and comparison" },
-      { id: "s5", studentName: "David Brown", submittedAt: "2024-01-09T11:30:00", status: "Graded", marks: 78, remarks: "Good work, needs more depth in complexity analysis" },
-    ],
-    "3": [
-      { id: "s6", studentName: "Emma Davis", submittedAt: "2024-01-18T13:20:00", status: "Submitted" },
-      { id: "s7", studentName: "Chris Miller", submittedAt: "2024-01-17T15:10:00", status: "Pending" },
-    ],
-  }
+  // TODO: Fetch submissions from Supabase based on selectedTeacher.id
+  const mockSubmissions: Record<string, Submission[]> = {}
 
   const handleCreateAssignment = (newAssignment: {
     title: string

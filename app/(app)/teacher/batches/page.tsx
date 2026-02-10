@@ -1,51 +1,13 @@
 "use client"
 
 import TeacherBatchesList from "@/components/teacher/teacher-batches-list"
+import { useTeacher } from "@/lib/contexts/teacher-context"
 
 export default function TeacherBatchesPage() {
-  // Mock data - replace with actual data fetching logic
-  const batches = [
-    {
-      id: "batch-1",
-      name: "CS-2024-A",
-      course: "Computer Science Fundamentals",
-      timings: "Mon, Wed, Fri - 9:00 AM to 11:00 AM",
-      studentCount: 25,
-      status: "Active" as const,
-    },
-    {
-      id: "batch-2",
-      name: "CS-2024-B",
-      course: "Data Structures & Algorithms",
-      timings: "Tue, Thu, Sat - 2:00 PM to 4:00 PM",
-      studentCount: 22,
-      status: "Active" as const,
-    },
-    {
-      id: "batch-3",
-      name: "CS-2023-C",
-      course: "Advanced Programming",
-      timings: "Mon, Wed - 10:00 AM to 12:00 PM",
-      studentCount: 18,
-      status: "Completed" as const,
-    },
-    {
-      id: "batch-4",
-      name: "CS-2024-D",
-      course: "Web Development",
-      timings: "Tue, Thu - 1:00 PM to 3:00 PM",
-      studentCount: 28,
-      status: "Active" as const,
-    },
-    {
-      id: "batch-5",
-      name: "CS-2023-E",
-      course: "Database Management",
-      timings: "Wed, Fri - 3:00 PM to 5:00 PM",
-      studentCount: 20,
-      status: "Completed" as const,
-    },
-  ]
+  const { selectedTeacher, isLoading } = useTeacher()
+
+  // TODO: Fetch batches from Supabase based on selectedTeacher.id
+  const batches: any[] = []
 
   return (
     <div className="space-y-6">

@@ -128,15 +128,23 @@ const STORAGE_KEY = "sdhub_teachers_v1"
 export function getTeachers(): Teacher[] {
   if (typeof window === "undefined") return DEFAULT_TEACHERS
   const raw = window.localStorage.getItem(STORAGE_KEY)
-  if (!raw) {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_TEACHERS))
-    return DEFAULT_TEACHERS
-  }
+  // If there's no stored data, return empty list (don't inject defaults into localStorage)
+  if (!raw) return []
   try {
     const parsed = JSON.parse(raw) as Teacher[]
-    return Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_TEACHERS
+    // If stored value exactly matches the old DEFAULT_TEACHERS JSON (legacy), clear it and return []
+    try {
+      const defaultJson = JSON.stringify(DEFAULT_TEACHERS)
+      if (raw === defaultJson) {
+        window.localStorage.removeItem(STORAGE_KEY)
+        return []
+      }
+    } catch {
+      /* ignore */
+    }
+    return Array.isArray(parsed) ? parsed : []
   } catch {
-    return DEFAULT_TEACHERS
+    return []
   }
 }
 
