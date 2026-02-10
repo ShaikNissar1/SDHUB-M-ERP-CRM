@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { createTeacher as createSupabaseTeacher, deleteTeacher as deleteSupabaseTeacher } from "@/lib/supabase/teachers"
 
 // Simple CSV export
 function exportCsv(filename: string, rows: any[]) {
@@ -52,34 +53,63 @@ export function TeachersTable() {
       const load = () => setTeachers(getTeachers())
       load()
       
-      // Fetch real courses and batches from Supabase
+      // Fetch real courses, batches and teachers from Supabase and merge with local admin teachers
       try {
         const { createBrowserClient } = await import("@/lib/supabase/client")
         const supabase = createBrowserClient()
-        
+
+        // Fetch teachers from Supabase
+        try {
+          const { data: supaTeachers, error: teacherError } = await supabase
+            .from("teachers")
+            .select("*")
+            .order("name")
+          
+          const localTeachers = getTeachers()
+          let merged = localTeachers
+          
+          if (teacherError) {
+            console.warn("[v0] Could not load teachers from Supabase, using local teachers:", teacherError)
+          } else if (supaTeachers && supaTeachers.length > 0) {
+            // Use only Supabase teachers (don't merge with local fallback)
+            // This prevents deleted teachers from reappearing on page reload
+            merged = supaTeachers
+            console.log("[v0] Loaded teachers from Supabase:", supaTeachers.length)
+          }
+          
+          setTeachers(merged)
+        } catch (err) {
+          console.warn("[v0] Exception loading teachers from Supabase:", err)
+          // Fallback: use local teachers already loaded above
+        }
+
         // Fetch courses
-        const { data: coursesData } = await supabase
+        const { data: coursesData, error: courseError } = await supabase
           .from("courses")
           .select("id, name")
           .order("name")
         
-        if (coursesData) {
+        if (!courseError && coursesData) {
           setCourses(coursesData)
           console.log("[v0] Loaded courses for teacher form:", coursesData.length)
+        } else if (courseError) {
+          console.warn("[v0] Could not load courses from Supabase:", courseError)
         }
         
         // Fetch batches
-        const { data: batchesData } = await supabase
+        const { data: batchesData, error: batchError } = await supabase
           .from("batches")
           .select("id, name, course_id")
           .order("name")
         
-        if (batchesData) {
+        if (!batchError && batchesData) {
           setBatches(batchesData)
           console.log("[v0] Loaded batches for teacher form:", batchesData.length)
+        } else if (batchError) {
+          console.warn("[v0] Could not load batches from Supabase:", batchError)
         }
       } catch (error) {
-        console.error("[v0] Error loading courses/batches:", error)
+        console.error("[v0] Error in Supabase operations:", error)
         // Fallback to localStorage
         setCourses((getCourses?.() || []).map((name, idx) => ({ id: `local-${idx}`, name })))
         setBatches((getBatches?.() || []).map((b: any) => ({ id: b.id, name: b.name, course_id: null })))
@@ -92,6 +122,27 @@ export function TeachersTable() {
     
     loadData()
   }, [])
+
+  const handleDeleteTeacher = async (id: string) => {
+    // Delete from Supabase first
+    try {
+      const deleted = await deleteSupabaseTeacher(id)
+      if (!deleted) {
+        console.error("[v0] Failed to delete teacher from Supabase")
+        return
+      }
+      console.log("[v0] Teacher deleted from Supabase successfully")
+    } catch (err) {
+      console.error("[v0] Error deleting teacher from Supabase:", err)
+      return
+    }
+
+    // Then delete from localStorage
+    removeTeacher(id)
+
+    // Update local state to remove the teacher immediately
+    setTeachers((prev) => prev.filter((t) => t.id !== id))
+  }
 
   const roles = useMemo(() => Array.from(new Set(teachers.map((t) => t.role || "Unknown"))), [teachers])
   const courseOptions = useMemo(() => {
@@ -118,11 +169,12 @@ export function TeachersTable() {
     return byRole && byCourse && byBatch && byRating && byStatus
   })
 
-  const handleAdd = (form: FormData) => {
+  const handleAdd = async (form: FormData) => {
     const name = String(form.get("name") || "").trim()
     if (!name) return
     const id = name.toLowerCase().replace(/\s+/g, "-")
-    addTeacher({
+    
+    const teacherData = {
       id,
       name,
       role: String(form.get("role") || "Instructor"),
@@ -131,7 +183,26 @@ export function TeachersTable() {
       batchName: String(form.get("batch") || ""),
       rating: Number(form.get("rating") || 0),
       status: String(form.get("status") || "active") as Teacher["status"],
-    })
+    }
+    
+    // Save to localStorage
+    addTeacher(teacherData)
+    
+    // Also save to Supabase
+    try {
+      await createSupabaseTeacher({
+        name: teacherData.name,
+        email: teacherData.contact,
+        role: teacherData.role,
+        contact: teacherData.contact,
+        status: teacherData.status === "active" ? "active" : "inactive",
+        rating: teacherData.rating,
+      })
+      console.log("[v0] Teacher saved to Supabase successfully")
+    } catch (err) {
+      console.warn("[v0] Could not save teacher to Supabase (will use localStorage):", err)
+    }
+    
     setAddOpen(false)
   }
 
@@ -226,10 +297,10 @@ export function TeachersTable() {
               </DialogHeader>
               <form
                 className="grid gap-3"
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault()
                   const fd = new FormData(e.currentTarget as HTMLFormElement)
-                  handleAdd(fd)
+                  await handleAdd(fd)
                 }}
               >
                 <div className="grid gap-1">
@@ -398,6 +469,19 @@ export function TeachersTable() {
                         <DropdownMenuItem
                           onSelect={(e) => {
                             e.preventDefault()
+                            try {
+                              const payload = { id: t.id, name: t.name, role: t.role }
+                              localStorage.setItem("sdhub:impersonate_teacher", JSON.stringify(payload))
+                              window.dispatchEvent(new CustomEvent("impersonation:changed"))
+                            } catch {}
+                            router.push("/teacher")
+                          }}
+                        >
+                          Test as Teacher
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={(e) => {
+                            e.preventDefault()
                             const prefill = t.courseName ? `&prefillCourse=${encodeURIComponent(t.courseName)}` : ""
                             router.push(`/batches?new=1${prefill}`)
                           }}
@@ -425,7 +509,7 @@ export function TeachersTable() {
                           className="text-red-600 focus:text-red-600"
                           onSelect={(e) => {
                             e.preventDefault()
-                            removeTeacher(t.id)
+                            handleDeleteTeacher(t.id)
                           }}
                         >
                           Remove

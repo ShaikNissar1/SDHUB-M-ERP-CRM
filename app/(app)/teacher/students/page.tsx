@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PerformanceBadge } from "@/components/teacher/performance-badge"
 import { useState } from "react"
 import { Eye, Users } from "lucide-react"
+import { useTeacher } from "@/lib/contexts/teacher-context"
 
 interface Student {
   id: string
@@ -23,40 +24,16 @@ interface Batch {
   studentCount: number
 }
 
-// Mock data - replace with actual data fetching logic
-const mockBatches: Batch[] = [
-  { id: "batch-1", name: "CS-2024-A", course: "Computer Science Fundamentals", studentCount: 25 },
-  { id: "batch-2", name: "CS-2024-B", course: "Data Structures & Algorithms", studentCount: 22 },
-  { id: "batch-3", name: "CS-2024-C", course: "Web Development", studentCount: 28 },
-]
-
-const mockStudentsData: Record<string, Student[]> = {
-  "batch-1": [
-    { id: "1", name: "John Doe", attendance: 95, lastTestScore: 88, performanceStatus: "Good" },
-    { id: "2", name: "Jane Smith", attendance: 87, lastTestScore: 92, performanceStatus: "Good" },
-    { id: "3", name: "Mike Johnson", attendance: 78, lastTestScore: 75, performanceStatus: "Average" },
-    { id: "4", name: "Sarah Wilson", attendance: 82, lastTestScore: 68, performanceStatus: "At Risk" },
-    { id: "5", name: "David Brown", attendance: 91, lastTestScore: 85, performanceStatus: "Good" },
-  ],
-  "batch-2": [
-    { id: "6", name: "Emma Davis", attendance: 89, lastTestScore: 78, performanceStatus: "Average" },
-    { id: "7", name: "Chris Miller", attendance: 94, lastTestScore: 91, performanceStatus: "Good" },
-    { id: "8", name: "Lisa Garcia", attendance: 76, lastTestScore: 72, performanceStatus: "At Risk" },
-    { id: "9", name: "Tom Anderson", attendance: 88, lastTestScore: 83, performanceStatus: "Good" },
-  ],
-  "batch-3": [
-    { id: "10", name: "Anna Taylor", attendance: 92, lastTestScore: 87, performanceStatus: "Good" },
-    { id: "11", name: "Robert Lee", attendance: 85, lastTestScore: 79, performanceStatus: "Average" },
-    { id: "12", name: "Maria Rodriguez", attendance: 79, lastTestScore: 65, performanceStatus: "At Risk" },
-    { id: "13", name: "James Wilson", attendance: 96, lastTestScore: 94, performanceStatus: "Good" },
-  ],
-}
+// TODO: Fetch batches from Supabase based on selectedTeacher.id
+const mockBatches: Batch[] = []
 
 export default function TeacherStudentsPage() {
+  const { selectedTeacher, isLoading } = useTeacher()
   const [selectedBatchId, setSelectedBatchId] = useState<string>("")
 
   const selectedBatch = mockBatches.find(b => b.id === selectedBatchId)
-  const students = selectedBatchId ? mockStudentsData[selectedBatchId] || [] : []
+  // TODO: Fetch students from Supabase based on selectedTeacher.id and selectedBatchId
+  const students: Student[] = []
 
   const getAttendanceColor = (attendance: number) => {
     if (attendance >= 90) return "text-green-600"

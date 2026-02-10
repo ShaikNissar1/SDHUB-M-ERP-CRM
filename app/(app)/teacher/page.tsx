@@ -7,72 +7,22 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import TeacherDashboardKpiCards from "@/components/teacher/teacher-dashboard-kpi-cards"
 import { Clock, Bell, ArrowRight } from "lucide-react"
+import { useTeacher } from "@/lib/contexts/teacher-context"
 
 export default function TeacherDashboardPage() {
-  // Mock data - replace with actual data fetching logic
-  const teacherName = "Dr. Sarah Johnson"
-  const specialization = "Computer Science & Data Structures"
+  const { selectedTeacher, isLoading } = useTeacher()
 
-  const todaysClasses = [
-    {
-      batchName: "CS-2024-A",
-      courseName: "Data Structures & Algorithms",
-      timeSlot: "09:00 AM - 11:00 AM",
-    },
-    {
-      batchName: "CS-2024-B",
-      courseName: "Advanced Programming",
-      timeSlot: "02:00 PM - 04:00 PM",
-    },
-  ]
+  const teacherName = selectedTeacher?.name ?? (isLoading ? "Loading..." : "")
+  const specialization = selectedTeacher?.subject || selectedTeacher?.qualification || ""
 
-  const pendingTasks = [
-    {
-      id: "1",
-      studentName: "John Doe",
-      assignment: "Binary Tree Implementation",
-      submittedDate: "2024-01-02",
-      dueDate: "2024-01-05",
-    },
-    {
-      id: "2",
-      studentName: "Jane Smith",
-      assignment: "Sorting Algorithms Analysis",
-      submittedDate: "2024-01-01",
-      dueDate: "2024-01-04",
-    },
-    {
-      id: "3",
-      studentName: "Mike Johnson",
-      assignment: "Graph Traversal Project",
-      submittedDate: "2023-12-30",
-      dueDate: "2024-01-03",
-    },
-  ]
+  // TODO: Fetch from Supabase based on selectedTeacher.id
+  const todaysClasses: any[] = []
 
-  const notifications = [
-    {
-      id: "1",
-      type: "admin",
-      message: "New batch CS-2024-C has been assigned to you",
-      timestamp: "2 hours ago",
-      unread: true,
-    },
-    {
-      id: "2",
-      type: "system",
-      message: "Exam schedule for mid-term has been updated",
-      timestamp: "1 day ago",
-      unread: false,
-    },
-    {
-      id: "3",
-      type: "admin",
-      message: "Please review the updated curriculum guidelines",
-      timestamp: "3 days ago",
-      unread: false,
-    },
-  ]
+  // TODO: Fetch from Supabase based on selectedTeacher.id
+  const pendingTasks: any[] = []
+
+  // TODO: Fetch from Supabase based on selectedTeacher.id
+  const notifications: any[] = []
 
   return (
     <main className="flex flex-col gap-6">

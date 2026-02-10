@@ -293,3 +293,38 @@ export async function removeTeacherFromBatch(batchId: string, teacherId: string)
   }
   return true
 }
+
+export async function getBatchesByTeacherId(teacherId: string): Promise<Batch[]> {
+  const supabase = getSupabaseClient()
+  const { data: batchTeachers, error: btError } = await supabase
+    .from("batch_teachers")
+    .select("batch_id")
+    .eq("teacher_id", teacherId)
+
+  if (btError) {
+    console.error("Error fetching batches for teacher:", btError)
+    return []
+  }
+
+  if (!batchTeachers || batchTeachers.length === 0) {
+    console.log("[v0] No batches found for teacher:", teacherId)
+    return []
+  }
+
+  const batchIds = batchTeachers.map((bt) => bt.batch_id)
+  const { data: batches, error: bError } = await supabase
+    .from("batches")
+    .select("*")
+    .in("id", batchIds)
+    .order("start_date", { ascending: false })
+
+  if (bError) {
+    console.error("Error fetching batch details:", bError)
+    return []
+  }
+
+  return (batches || []).map((batch) => ({
+    ...batch,
+    status: calculateBatchStatus(batch.start_date, batch.end_date),
+  }))
+}
