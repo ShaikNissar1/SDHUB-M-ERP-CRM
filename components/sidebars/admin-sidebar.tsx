@@ -38,7 +38,7 @@ export function AdminSidebar() {
   const pathname = usePathname()
   const items = [
     { href: "/", label: "Dashboard", icon: HomeIcon },
-    { href: "/enquiries", label: "Enquiries", icon: UsersIcon, badge: { text: "3", variant: "default" as const } },
+    { href: "/enquiries", label: "Enquiries", icon: UsersIcon, badge: { variant: "default" as const } },
     { href: "/documents", label: "Student Records", icon: FolderIcon },
     { href: "/courses", label: "Courses", icon: BookOpenIcon },
     { href: "/batches", label: "Batches", icon: LayersIcon },
