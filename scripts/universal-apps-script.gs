@@ -19,14 +19,15 @@ const SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 
 const COLUMN_MAPPING = {
   TIMESTAMP: 0,      // Column A - Timestamp
-  SCORE: 1,          // Column B - Score (e.g., "10 / 70")
-  EMAIL: 2,          // Column C - Email
+  EMAIL: 1,          // Column B - Email Address
+  SCORE: 2,          // Column C - Score (e.g., "10 / 70")
   NAME: 3,           // Column D - Full Name
   GENDER: 4,         // Column E - Gender
   FATHER_NAME: 5,    // Column F - Father Name
   PHONE: 6,          // Column G - Contact Number
-  SKIPPED_H: 7,      // Column H - (skip)
+  EMAIL_DUP: 7,      // Column H - Email Address (duplicate - skip)
   COURSE: 8,         // Column I - Course
+  ADDRESS: 9,        // Column J - Address
 }
 
 /**

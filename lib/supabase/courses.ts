@@ -154,7 +154,7 @@ export async function toggleCourseStatus(id: string, isActive: boolean): Promise
   const supabase = getSupabaseClient()
   const { data, error } = await supabase
     .from("courses")
-    .update({ updated_at: new Date().toISOString() })
+    .update({ is_active: isActive, updated_at: new Date().toISOString() })
     .eq("id", id)
     .select()
     .single()
