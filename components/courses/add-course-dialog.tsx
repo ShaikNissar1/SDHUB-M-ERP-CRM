@@ -143,13 +143,24 @@ export function AddCourseDialog({
           // Update existing course in Supabase
           await updateCourse(targetId, courseData)
 
-          updateCourseDetails(targetId, {
+          // Find the course details by original name since localStorage IDs differ from Supabase IDs
+          const { getCourseDetailsByName } = await import("@/lib/course-details")
+          const existingDetails = getCourseDetailsByName(originalName || main)
+          
+          const detailsPayload = {
             name: main,
             description: description.trim() || undefined,
             duration: duration.trim() || undefined,
             languages: languages.length ? languages : undefined,
             modules: cleanModules.map((m, i) => ({ id: `${Date.now()}-${i}`, ...m })),
-          })
+          }
+          
+          if (existingDetails) {
+            updateCourseDetails(existingDetails.id, detailsPayload)
+          } else {
+            // Create details if they don't exist (e.g., course created in Supabase before details feature)
+            addCourseDetails(detailsPayload)
+          }
         } else {
           throw new Error("Course ID not found for editing")
         }
