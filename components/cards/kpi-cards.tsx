@@ -120,6 +120,12 @@ function filterLeadsByDateRange(leads: any[], range: Range) {
 }
 
 export function KPICards() {
+  // Track if component has mounted on client to avoid hydration mismatch
+  const [isMounted, setIsMounted] = React.useState(false)
+  React.useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
   // ranges for chips
   const [leadsView, setLeadsView] = React.useState<"contacted" | "notContacted">("contacted")
   const [enquiriesRange, setEnquiriesRange] = React.useState<Range>("month")
@@ -242,29 +248,56 @@ export function KPICards() {
 
   const finalAdmittedCount = admittedFromSupabase > 0 ? admittedFromSupabase : admitted
 
-  const tiles = [
-    { title: "Total Enquiries", value: totalEnquiriesN.toLocaleString(), delta: +0.0, icon: UsersIcon as any },
-    {
-      title: "Leads Contacted",
-      value: (leadsView === "contacted" ? leadsContactedN : leadsNotContactedN).toLocaleString(),
-      delta: +0.0,
-      icon: PhoneCallIcon as any,
-    },
-    {
-      title: "Students Admitted",
-      value: finalAdmittedCount.toLocaleString(),
-      delta: +0.0,
-      icon: CheckCircle2Icon as any,
-    },
-    { title: "Active Courses", value: activeCoursesCount.toString(), delta: +0.0, icon: Layers3Icon as any },
-    {
-      title: "Attendance Today",
-      value: attTotal > 0 ? `${present}/${attTotal}` : "0/0",
-      delta: +0.0,
-      icon: CalendarCheck2Icon as any,
-    },
-    { title: "Active Students", value: activeStudents.toString(), delta: +0.0, icon: UsersIcon as any },
-  ] as const
+  // Use isMounted to render placeholder values during hydration, actual values after
+  const displayTilesData = isMounted
+    ? [
+        { title: "Total Enquiries", value: totalEnquiriesN.toLocaleString(), delta: +0.0, icon: UsersIcon as any },
+        {
+          title: "Leads Contacted",
+          value: (leadsView === "contacted" ? leadsContactedN : leadsNotContactedN).toLocaleString(),
+          delta: +0.0,
+          icon: PhoneCallIcon as any,
+        },
+        {
+          title: "Students Admitted",
+          value: finalAdmittedCount.toLocaleString(),
+          delta: +0.0,
+          icon: CheckCircle2Icon as any,
+        },
+        { title: "Active Courses", value: activeCoursesCount.toString(), delta: +0.0, icon: Layers3Icon as any },
+        {
+          title: "Attendance Today",
+          value: attTotal > 0 ? `${present}/${attTotal}` : "0/0",
+          delta: +0.0,
+          icon: CalendarCheck2Icon as any,
+        },
+        { title: "Active Students", value: activeStudents.toString(), delta: +0.0, icon: UsersIcon as any },
+      ]
+    : [
+        { title: "Total Enquiries", value: "—", delta: +0.0, icon: UsersIcon as any },
+        {
+          title: "Leads Contacted",
+          value: "—",
+          delta: +0.0,
+          icon: PhoneCallIcon as any,
+        },
+        {
+          title: "Students Admitted",
+          value: "—",
+          delta: +0.0,
+          icon: CheckCircle2Icon as any,
+        },
+        { title: "Active Courses", value: "—", delta: +0.0, icon: Layers3Icon as any },
+        {
+          title: "Attendance Today",
+          value: "—",
+          delta: +0.0,
+          icon: CalendarCheck2Icon as any,
+        },
+        { title: "Active Students", value: "—", delta: +0.0, icon: UsersIcon as any },
+      ]
+
+  const tiles = displayTilesData as const
 
   return (
     // ensure 2-up on mobile

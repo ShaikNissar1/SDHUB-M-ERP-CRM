@@ -15,8 +15,13 @@ import { useSupabaseLeads } from "@/hooks/use-supabase-leads"
 import { BatchHighlights } from "@/components/batches/batch-highlights"
 
 export default function Page() {
+  const [isMounted, setIsMounted] = useState(false)
   const [dueToday, setDueToday] = useState(0)
   const { leads } = useSupabaseLeads()
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0]
@@ -32,7 +37,7 @@ export default function Page() {
             <p className="text-xs text-muted-foreground">Leads scheduled for contact today</p>
           </CardHeader>
           <CardContent className="flex items-center justify-between">
-            <div className="text-3xl font-semibold tabular-nums">{dueToday}</div>
+            <div className="text-3xl font-semibold tabular-nums">{isMounted ? dueToday : "—"}</div>
             <span className="underline text-sm">View All</span>
           </CardContent>
         </Card>

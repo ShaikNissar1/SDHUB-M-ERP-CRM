@@ -10,9 +10,11 @@ export function useSupabaseLeads() {
   const [error, setError] = useState<string | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
-  const fetchLeads = useCallback(async () => {
+  const fetchLeads = useCallback(async (skipLoading: boolean = false) => {
     try {
-      setLoading(true)
+      if (!skipLoading) {
+        setLoading(true)
+      }
       const data = await withRetry(async () => {
         const supabase = getSupabaseClient()
         const { data, error: err } = await supabase.from("leads").select("*").order("created_at", { ascending: false })
@@ -28,7 +30,9 @@ export function useSupabaseLeads() {
       setError(err instanceof Error ? err.message : "Failed to fetch leads")
       setLeads([])
     } finally {
-      setLoading(false)
+      if (!skipLoading) {
+        setLoading(false)
+      }
     }
   }, [])
 
@@ -38,13 +42,17 @@ export function useSupabaseLeads() {
 
   useEffect(() => {
     const supabase = getSupabaseClient()
+    let debounceTimer: NodeJS.Timeout
 
     const channel = supabase
       .channel("leads-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, (payload) => {
         console.log("[v0] Real-time update received:", payload)
-        // Refetch leads when any change is detected
-        fetchLeads()
+        // Debounce the refetch to batch multiple updates
+        clearTimeout(debounceTimer)
+        debounceTimer = setTimeout(() => {
+          fetchLeads(true) // Skip loading state for real-time updates
+        }, 300)
       })
       .subscribe((status) => {
         console.log("[v0] Subscription status:", status)
@@ -54,18 +62,19 @@ export function useSupabaseLeads() {
       })
 
     return () => {
+      clearTimeout(debounceTimer)
       channel.unsubscribe()
     }
   }, [fetchLeads])
 
   useEffect(() => {
-    const handleLeadsUpdate = () => {
-      console.log("[v0] Custom leads:updated event triggered, refreshing")
-      fetchLeads()
+    const handleLeadsUpdate = (e: CustomEvent) => {
+      console.log("[v0] Custom leads:updated event triggered, skipLoading:", e.detail?.skipLoading)
+      fetchLeads(e.detail?.skipLoading || false)
     }
 
-    window.addEventListener("leads:updated", handleLeadsUpdate)
-    return () => window.removeEventListener("leads:updated", handleLeadsUpdate)
+    window.addEventListener("leads:updated", handleLeadsUpdate as EventListener)
+    return () => window.removeEventListener("leads:updated", handleLeadsUpdate as EventListener)
   }, [fetchLeads])
 
   const refreshLeads = useCallback(() => {
