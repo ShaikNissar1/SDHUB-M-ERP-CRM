@@ -114,6 +114,7 @@ export function LeadsTable() {
   const [studentsWithDocs, setStudentsWithDocs] = useState<Set<string>>(new Set())
   const [page, setPage] = useState<number>(1)
   const [pageSize, setPageSize] = useState<number>(30)
+  const [scrollY, setScrollY] = useState<number>(0)
 
   const router = useRouter()
   const search = useSearchParams()
@@ -313,6 +314,15 @@ export function LeadsTable() {
   }, [totalPages, page])
 
   const updateLeadInSupabase = async (leadId: string, updates: Partial<Lead>) => {
+    // Save current scroll position
+    const currentScrollY = window.scrollY
+    setScrollY(currentScrollY)
+
+    // Optimistically update local state first
+    setRows((prevRows) =>
+      prevRows.map((r) => (r.id === leadId ? { ...r, ...updates, updated_at: new Date().toISOString() } : r))
+    )
+
     const supabase = getSupabaseClient()
     const { error } = await supabase
       .from("leads")
@@ -324,10 +334,13 @@ export function LeadsTable() {
       return
     }
 
-    console.log("[v0] Lead updated successfully, refreshing data")
-    window.dispatchEvent(new Event("leads:updated"))
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    refreshLeads()
+    console.log("[v0] Lead updated successfully")
+    // Dispatch event with skipLoading flag to prevent page reset
+    const event = new CustomEvent("leads:updated", { detail: { skipLoading: true } })
+    window.dispatchEvent(event)
+    
+    // Restore scroll position
+    window.scrollTo(0, currentScrollY)
   }
 
   const markWithHistory = (leadId: string, status: Status, extra?: Partial<Lead>, note?: string) => {
