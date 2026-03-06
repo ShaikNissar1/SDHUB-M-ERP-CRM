@@ -17,6 +17,7 @@ const SUPABASE_URL = "https://htxvrpgpvznzjhfdbcsj.supabase.co"
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0eHZycGdwdnpuempoZmRiY3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExMjEwMTksImV4cCI6MjA3NjY5NzAxOX0.y3GKRFbMH2rTkNdjVaMMZPUmk5SxvepR98byW_JscK4"
 const SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0eHZycGdwdnpuempoZmRiY3NqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTEyMTAxOSwiZXhwIjoyMDc2Njk3MDE5fQ.avmolbqMp6_kXinzZFFnaIVbc-S4nLVcKCxxo-nm8sQ"
 
+
 const COLUMN_MAPPING = {
   TIMESTAMP: 0,      // Column A - Timestamp
   EMAIL: 1,          // Column B - Email Address
@@ -278,7 +279,6 @@ function onFormSubmit(e) {
 
 /**
  * Insert into entrance_exam_results table
- * Removed course field - entrance_exam_results table doesn't have it
  */
 function insertEntranceExamResult(record) {
   const url = `${SUPABASE_URL}/rest/v1/entrance_exam_results`
@@ -330,7 +330,6 @@ function insertEntranceExamResult(record) {
 
 /**
  * Insert into main_exam_results table
- * Removed course field - main_exam_results table doesn't have it
  */
 function insertMainExamResult(record) {
   const url = `${SUPABASE_URL}/rest/v1/main_exam_results`
@@ -382,7 +381,6 @@ function insertMainExamResult(record) {
 
 /**
  * Insert into internal_exam_results table
- * Removed course field - internal_exam_results table doesn't have it
  */
 function insertInternalExamResult(record) {
   const url = `${SUPABASE_URL}/rest/v1/internal_exam_results`

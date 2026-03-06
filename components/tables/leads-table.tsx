@@ -8,10 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { ChevronDownIcon, PhoneCallIcon, EyeIcon, SearchIcon } from "lucide-react"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ChevronDownIcon, PhoneCallIcon, EyeIcon, SearchIcon, MoreVerticalIcon } from "lucide-react"
 import {
   Pagination,
   PaginationContent,
@@ -20,7 +19,6 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
-import Link from "next/link"
 import { useSupabaseLeads } from "@/hooks/use-supabase-leads"
 import { getSupabaseClient } from "@/lib/supabase/client"
 import type { Lead } from "@/lib/supabase/types"
@@ -28,15 +26,26 @@ import { useSupabaseCourses } from "@/lib/courses"
 
 type Status =
   | "New Enquiry"
-  | "HR Called"
+  | "Contacted"
   | "Visited"
+  | "Exam Written"
+  | "Final Exam Written"
+  | "Admit"
+  | "Reject"
+  | "Hold for Next Batch"
+  | "HR Called"
+  | "Pending"
+  | "Pending Final Exam"
   | "Admitted"
   | "Rejected"
-  | "Pending"
-  | "Hold for Next Batch"
-  | "Exam Written"
-  | "Pending Final Exam"
-  | "Final Exam Written"
+  | "Interested"
+  | "Not Answered"
+  | "Busy"
+  | "Call Back Later"
+  | "Not Interested"
+  | "Wrong Number"
+
+type TabType = "active" | "exam" | "closed"
 
 function formatLocalYMD(date: Date) {
   const y = date.getFullYear()
@@ -45,22 +54,34 @@ function formatLocalYMD(date: Date) {
   return `${y}-${m}-${d}`
 }
 
-function parseYMDLocal(s: string) {
-  const [y, m, d] = s.split("-").map((n) => Number.parseInt(n, 10))
-  return new Date(y, (m || 1) - 1, d || 1)
+function getFollowUpStatus(date: string | null | undefined) {
+  if (!date) return null
+  const today = new Date().toISOString().split("T")[0]
+  if (date < today) return "overdue"
+  if (date === today) return "today"
+  return "upcoming"
 }
 
 const statusStyles: Record<Status, { bg: string; fg: string }> = {
   "New Enquiry": { bg: "oklch(var(--status-new))", fg: "oklch(var(--status-new-fg))" },
-  "HR Called": { bg: "oklch(var(--status-called))", fg: "oklch(var(--status-called-fg))" },
+  Contacted: { bg: "oklch(var(--status-called))", fg: "oklch(var(--status-called-fg))" },
   Visited: { bg: "oklch(var(--status-visited))", fg: "oklch(var(--status-visited-fg))" },
+  "Exam Written": { bg: "oklch(var(--status-visited))", fg: "oklch(var(--status-visited-fg))" },
+  "Final Exam Written": { bg: "oklch(var(--status-visited))", fg: "oklch(var(--status-visited-fg))" },
+  Admit: { bg: "oklch(var(--status-admitted))", fg: "oklch(var(--status-admitted-fg))" },
+  Reject: { bg: "oklch(var(--status-rejected))", fg: "oklch(var(--status-rejected-fg))" },
+  "Hold for Next Batch": { bg: "oklch(var(--status-pending))", fg: "oklch(var(--status-pending-fg))" },
+  "HR Called": { bg: "oklch(var(--status-called))", fg: "oklch(var(--status-called-fg))" },
+  Pending: { bg: "oklch(var(--status-visited))", fg: "oklch(var(--status-visited-fg))" },
+  "Pending Final Exam": { bg: "oklch(var(--status-pending))", fg: "oklch(var(--status-pending-fg))" },
   Admitted: { bg: "oklch(var(--status-admitted))", fg: "oklch(var(--status-admitted-fg))" },
   Rejected: { bg: "oklch(var(--status-rejected))", fg: "oklch(var(--status-rejected-fg))" },
-  Pending: { bg: "oklch(var(--status-visited))", fg: "oklch(var(--status-visited-fg))" },
-  "Hold for Next Batch": { bg: "oklch(var(--status-pending))", fg: "oklch(var(--status-pending-fg))" },
-  "Exam Written": { bg: "oklch(var(--status-visited))", fg: "oklch(var(--status-visited-fg))" },
-  "Pending Final Exam": { bg: "oklch(var(--status-pending))", fg: "oklch(var(--status-pending-fg))" },
-  "Final Exam Written": { bg: "oklch(var(--status-visited))", fg: "oklch(var(--status-visited-fg))" },
+  Interested: { bg: "oklch(var(--status-called))", fg: "oklch(var(--status-called-fg))" },
+  "Not Answered": { bg: "oklch(var(--status-called))", fg: "oklch(var(--status-called-fg))" },
+  Busy: { bg: "oklch(var(--status-called))", fg: "oklch(var(--status-called-fg))" },
+  "Call Back Later": { bg: "oklch(var(--status-called))", fg: "oklch(var(--status-called-fg))" },
+  "Not Interested": { bg: "oklch(var(--status-rejected))", fg: "oklch(var(--status-rejected-fg))" },
+  "Wrong Number": { bg: "oklch(var(--status-rejected))", fg: "oklch(var(--status-rejected-fg))" },
 }
 
 const TEST_FORM_URL = process.env.NEXT_PUBLIC_TEST_FORM_URL
@@ -92,17 +113,14 @@ export function LeadsTable() {
   const courseOptions = supabaseCourses.map((c) => c.name)
   const courseOptionsSet = useMemo(() => new Set(courseOptions.map((c) => c.toLowerCase())), [courseOptions])
 
+  // State
   const [rows, setRows] = useState<Lead[]>([])
   const [q, setQ] = useState("")
-  const [filterStatus, setFilterStatus] = useState<Status | "All">("All")
-  const [filterCourse, setFilterCourse] = useState<"All" | "Others" | string>("All")
-  const [filterSource, setFilterSource] = useState<string | "All">("All")
-  const [filterDate, setFilterDate] = useState<string>("")
+  const [tab, setTab] = useState<TabType>("active")
   const [testResults, setTestResults] = useState<TestResult[]>([])
-  const [holdOpen, setHoldOpen] = useState(false)
-  const [holdIdx, setHoldIdx] = useState<number | null>(null)
-  const [holdDate, setHoldDate] = useState<string>(formatLocalYMD(new Date()))
-  const [holdRemarks, setHoldRemarks] = useState<string>("")
+  const [page, setPage] = useState<number>(1)
+  const [pageSize, setPageSize] = useState<number>(30)
+  const [scrollY, setScrollY] = useState<number>(0)
   const [addLeadOpen, setAddLeadOpen] = useState(false)
   const [addLeadForm, setAddLeadForm] = useState({
     name: "",
@@ -111,19 +129,36 @@ export function LeadsTable() {
     course: "",
     source: "Online",
   })
-  const [studentsWithDocs, setStudentsWithDocs] = useState<Set<string>>(new Set())
-  const [page, setPage] = useState<number>(1)
-  const [pageSize, setPageSize] = useState<number>(30)
-  const [scrollY, setScrollY] = useState<number>(0)
+
+  // Modals
+  const [logCallOpen, setLogCallOpen] = useState(false)
+  const [logCallLeadId, setLogCallLeadId] = useState<string | null>(null)
+  const [logCallNextDate, setLogCallNextDate] = useState(formatLocalYMD(new Date()))
+  const [logCallOutcome, setLogCallOutcome] = useState("Interested")
+
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
 
   const router = useRouter()
   const search = useSearchParams()
   const pathname = usePathname()
 
+  // Sync rows with supabase leads
   useEffect(() => {
     setRows(supabaseLeads)
   }, [supabaseLeads])
 
+  // Load test results
+  useEffect(() => {
+    setTestResults(loadTestResults())
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === TEST_RESULTS_STORAGE_KEY) setTestResults(loadTestResults())
+    }
+    window.addEventListener("storage", onStorage)
+    return () => window.removeEventListener("storage", onStorage)
+  }, [])
+
+  // Load page size
   useEffect(() => {
     try {
       const raw = localStorage.getItem("sdhub:leads:pageSize")
@@ -141,205 +176,47 @@ export function LeadsTable() {
     }
   }, [pageSize])
 
-  useEffect(() => {
-    setTestResults(loadTestResults())
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === TEST_RESULTS_STORAGE_KEY) setTestResults(loadTestResults())
-    }
-    window.addEventListener("storage", onStorage)
-    return () => window.removeEventListener("storage", onStorage)
-  }, [])
-
-  useEffect(() => {
-    const s = search.get("status")
-    const src = search.get("source")
-    const d = search.get("date")
-    const query = search.get("q")
-    if (s) setFilterStatus((s as Status) || "All")
-    if (src) setFilterSource(src || "All")
-    if (d) setFilterDate(d)
-    if (query) setQ(query)
-    const course = search.get("course")
-    if (course) setFilterCourse(course as any)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const syncParams = (updates: Record<string, string | null | undefined>) => {
-    const params = new URLSearchParams(search.toString())
-    Object.entries(updates).forEach(([k, v]) => {
-      if (v && v.length > 0 && v !== "All") params.set(k, v)
-      else params.delete(k)
-    })
-    const qs = params.toString()
-    router.replace(`${pathname}${qs ? `?${qs}` : ""}`)
-  }
-
-  useEffect(() => {
-    syncParams({
-      status: filterStatus === "All" ? null : filterStatus,
-      source: filterSource === "All" ? null : filterSource,
-      date: filterDate || null,
-      q: q || null,
-      course: filterCourse === "All" ? null : (filterCourse as string),
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterStatus, filterSource, filterDate, q, filterCourse])
-
-  useEffect(() => {
-    const fetchStudentsWithDocs = async () => {
-      if (filterStatus !== "Admitted") {
-        setStudentsWithDocs(new Set())
-        return
-      }
-
-      const supabase = getSupabaseClient()
-      const { data, error } = await supabase.from("students").select("email")
-
-      if (error) {
-        console.error("[v0] Error fetching students:", error)
-        return
-      }
-
-      const emails = new Set(data.map((s) => s.email?.toLowerCase()).filter(Boolean))
-      setStudentsWithDocs(emails)
-      console.log("[v0] Fetched students with docs:", emails.size)
-    }
-
-    fetchStudentsWithDocs()
-  }, [filterStatus, supabaseLeads])
-
-  const sourcesFromData = Array.from(new Set(supabaseLeads.map((r) => r.source || "").filter(Boolean)))
-  const sourceOptions = Array.from(new Set(["All", "Online", "Email", "Offline", ...sourcesFromData]))
-
-  const addLeadSourceOptions = Array.from(
-    new Set(["Online", "Email", "Offline", "Whatsapp", "Instagram", "Referral", ...sourcesFromData]),
-  )
-
-  const matchesSource = (rowSource: string | undefined, filter: string | "All") => {
-    if (filter === "All") return true
-    const online = ["Website", "Instagram", "Facebook", "Google", "Online"]
-    const email = ["Email"]
-    const offline = ["Walk-in", "Referral", "Offline"]
-    if (filter === "Online") return online.includes(rowSource || "")
-    if (filter === "Email") return email.includes(rowSource || "")
-    if (filter === "Offline") return offline.includes(rowSource || "")
-    return rowSource === filter
-  }
-
-  const isFinalExam = (exam?: string) => {
-    const e = (exam || "").toLowerCase()
-    return e.includes("final") || e.includes("admission")
-  }
-
-  const scoreByEmail = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const r of testResults) {
-      if (r?.email) {
-        if (!map.has(r.email)) map.set(r.email, r.score ?? "-")
-      }
-    }
-    return map
-  }, [testResults])
-
-  const entranceScoreByEmail = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const r of testResults) {
-      if (r?.email && !isFinalExam(r.exam)) {
-        if (!map.has(r.email)) map.set(r.email, r.score ?? "-")
-      }
-    }
-    return map
-  }, [testResults])
-
-  const finalScoreByEmail = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const r of testResults) {
-      if (r?.email && isFinalExam(r.exam)) {
-        if (!map.has(r.email)) map.set(r.email, r.score ?? "-")
-      }
-    }
-    return map
-  }, [testResults])
-
-  const filtered = useMemo(() => {
-    return supabaseLeads.filter((r) => {
-      const textMatch =
-        (r.name || "").toLowerCase().includes(q.toLowerCase()) ||
-        (r.email || "").toLowerCase().includes(q.toLowerCase()) ||
-        (r.phone || "").includes(q)
-
-      const statusMatch =
-        filterStatus === "All" ? (r.status || "New Enquiry") !== "Admitted" : r.status === filterStatus
-
-      let courseMatch = true
-      if (filterCourse === "All") {
-        courseMatch = true
-      } else if (filterCourse === "Others") {
-        courseMatch = !courseOptionsSet.has((r.course || "").toLowerCase())
-      } else {
-        courseMatch = r.course === filterCourse
-      }
-
-      const sourceMatch = matchesSource(r.source, filterSource)
-      const dateMatch = !filterDate || (r.created_at || "").startsWith(filterDate)
-      return textMatch && statusMatch && courseMatch && sourceMatch && dateMatch
-    })
-  }, [supabaseLeads, q, filterStatus, filterCourse, filterSource, filterDate, courseOptionsSet])
-
-  // reset to first page when filters/search change
-  useEffect(() => {
-    setPage(1)
-  }, [q, filterStatus, filterCourse, filterSource, filterDate])
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
-  const paginated = useMemo(() => {
-    const start = (page - 1) * pageSize
-    return filtered.slice(start, start + pageSize)
-  }, [filtered, page, pageSize])
-
-  const pagesToRender = useMemo(() => {
-    const pages: Array<number | string> = []
-    if (totalPages <= 10) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i)
-    } else {
-      pages.push(1)
-      if (page > 4) pages.push("...")
-      const start = Math.max(2, page - 2)
-      const end = Math.min(totalPages - 1, page + 2)
-      for (let i = start; i <= end; i++) pages.push(i)
-      if (page < totalPages - 3) pages.push("...")
-      pages.push(totalPages)
-    }
-    return pages
-  }, [totalPages, page])
-
+  // Update functions
   const updateLeadInSupabase = async (leadId: string, updates: Partial<Lead>) => {
-    // Save current scroll position
     const currentScrollY = window.scrollY
     setScrollY(currentScrollY)
 
-    // Optimistically update local state first
     setRows((prevRows) =>
       prevRows.map((r) => (r.id === leadId ? { ...r, ...updates, updated_at: new Date().toISOString() } : r))
     )
 
     const supabase = getSupabaseClient()
-    const { error } = await supabase
+    
+    // Filter out undefined values and ensure valid data types
+    const cleanUpdates = Object.fromEntries(
+      Object.entries({ ...updates, updated_at: new Date().toISOString() }).filter(
+        ([_, v]) => v !== undefined && v !== null
+      )
+    )
+
+    const { error, data } = await supabase
       .from("leads")
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update(cleanUpdates)
       .eq("id", leadId)
+      .select()
 
     if (error) {
-      console.error("[v0] Error updating lead:", error)
+      console.error("[v0] Error updating lead:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      })
+      // Show user-friendly error message
+      alert(`Failed to update lead: ${error.message || "Unknown error"}`)
+      // Revert optimistic update
+      window.location.reload()
       return
     }
 
-    console.log("[v0] Lead updated successfully")
-    // Dispatch event with skipLoading flag to prevent page reset
+    console.log("[v0] Lead updated successfully", data)
     const event = new CustomEvent("leads:updated", { detail: { skipLoading: true } })
     window.dispatchEvent(event)
-    
-    // Restore scroll position
     window.scrollTo(0, currentScrollY)
   }
 
@@ -350,6 +227,33 @@ export function LeadsTable() {
       updated_at: new Date().toISOString(),
     }
     updateLeadInSupabase(leadId, updates)
+  }
+
+  const handleLogCall = async (leadId: string) => {
+    const lead = rows.find((r) => r.id === leadId)
+    if (!lead) return
+
+    const callAttempts = (lead.call_attempts || 0) + 1
+    // Use the actual selected outcome as the lead status so it appears in the Stage column
+    const mappedStatus = (logCallOutcome as Status)
+
+    // Append outcome to remarks with timestamp so we preserve call history on the lead
+    const remarkLine = `${new Date().toISOString()} - ${logCallOutcome}`
+    const newRemarks = lead.remarks ? `${remarkLine}\n${lead.remarks}` : remarkLine
+
+    const updates = {
+      call_attempts: callAttempts,
+      last_call_at: new Date().toISOString(),
+      next_follow_up_date: logCallNextDate || null,
+      status: mappedStatus,
+      remarks: newRemarks,
+    }
+
+    await updateLeadInSupabase(leadId, updates)
+    setLogCallOpen(false)
+    setLogCallLeadId(null)
+    setLogCallNextDate(formatLocalYMD(new Date()))
+    setLogCallOutcome("Interested")
   }
 
   const addLeadToSupabase = async () => {
@@ -388,532 +292,474 @@ export function LeadsTable() {
     refreshLeads()
   }
 
+  // Filter logic
+  const filtered = useMemo(() => {
+    return rows.filter((r) => {
+      // Text search
+      const textMatch =
+        (r.name || "").toLowerCase().includes(q.toLowerCase()) ||
+        (r.email || "").toLowerCase().includes(q.toLowerCase()) ||
+        (r.phone || "").includes(q)
+
+      // Tab filtering
+      const status = r.status || "New Enquiry"
+      let tabMatch = true
+      if (tab === "active") {
+        tabMatch = !["Admit", "Reject", "Admitted", "Rejected"].includes(status)
+      } else if (tab === "exam") {
+        tabMatch = ["Exam Written", "Final Exam Written"].includes(status)
+      } else if (tab === "closed") {
+        tabMatch = ["Admit", "Reject", "Admitted", "Rejected"].includes(status)
+      }
+
+      return textMatch && tabMatch
+    })
+  }, [rows, q, tab])
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [q, tab])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const paginated = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return filtered.slice(start, start + pageSize)
+  }, [filtered, page, pageSize])
+
+  const pagesToRender = useMemo(() => {
+    const pages: Array<number | string> = []
+    const maxPages = 10
+    if (totalPages <= maxPages) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i)
+    } else {
+      pages.push(1)
+      if (page > 4) pages.push("...")
+      for (let i = Math.max(2, page - 2); i <= Math.min(totalPages - 1, page + 2); i++) pages.push(i)
+      if (page < totalPages - 3) pages.push("...")
+      pages.push(totalPages)
+    }
+    return pages
+  }, [page, totalPages])
+
+  const sourcesFromData = Array.from(new Set(rows.map((r) => r.source || "").filter(Boolean)))
+  const addLeadSourceOptions = Array.from(
+    new Set(["Online", "Email", "Offline", "Whatsapp", "Instagram", "Referral", ...sourcesFromData]),
+  )
+
   if (loading) {
     return <div className="text-center py-8 text-muted-foreground">Loading leads...</div>
   }
 
   return (
-    <div className="grid gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <Input
-            placeholder="Search name, email, phone"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="w-[240px] pl-9"
-          />
-          <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        </div>
-        <Select value={filterStatus} onValueChange={(v: any) => setFilterStatus(v)}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Status/Action" />
-          </SelectTrigger>
-          <SelectContent>
-            {[
-              "All",
-              "New Enquiry",
-              "HR Called",
-              "Visited",
-              "Exam Written",
-              "Admitted",
-              "Rejected",
-              "Pending",
-              "Hold for Next Batch",
-              "Pending Final Exam",
-              "Final Exam Written",
-            ].map((s) => (
-              <SelectItem key={s} value={s as any}>
-                {s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    <div className="grid gap-4">
+      {/* Tabs */}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as TabType)} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-4">
+          <TabsTrigger value="active">
+            Active ({filtered.filter(r => !["Admit", "Reject", "Admitted", "Rejected"].includes(r.status || "New Enquiry")).length})
+          </TabsTrigger>
+          <TabsTrigger value="exam">
+            Exam Stage ({filtered.filter(r => ["Exam Written", "Final Exam Written"].includes(r.status || "")).length})
+          </TabsTrigger>
+          <TabsTrigger value="closed">
+            Closed ({filtered.filter(r => ["Admit", "Reject", "Admitted", "Rejected"].includes(r.status || "")).length})
+          </TabsTrigger>
+        </TabsList>
 
-        <Select value={filterSource} onValueChange={(v: any) => setFilterSource(v)}>
-          <SelectTrigger className="w-[180px]">
-            <span className="truncate">{`Source: ${filterSource === "All" ? "All" : filterSource}`}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {sourceOptions.map((s) => (
-              <SelectItem key={s} value={s as any}>
-                {s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={filterCourse} onValueChange={(v: any) => setFilterCourse(v)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Course" />
-          </SelectTrigger>
-          <SelectContent className="z-[1000]">
-            <SelectItem value="All">All Courses</SelectItem>
-            {courseOptions.map((c) => (
-              <SelectItem key={c} value={c}>
-                {c}
-              </SelectItem>
-            ))}
-            <SelectItem value="Others">Others</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="min-w-[120px] bg-transparent">
-              {filterDate ? `Date: ${filterDate}` : "Pick Date"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-auto p-2">
-            <Calendar
-              mode="single"
-              selected={filterDate ? parseYMDLocal(filterDate) : undefined}
-              onSelect={(d: any) => setFilterDate(d ? formatLocalYMD(d) : "")}
-            />
-            <div className="flex items-center gap-2 mt-2">
-              <Button size="sm" variant="secondary" onClick={() => setFilterDate(formatLocalYMD(new Date()))}>
-                Today
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setFilterDate("")}>
-                Clear
-              </Button>
+        <TabsContent value={tab} className="space-y-4">
+          {/* Search and Controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[240px]">
+              <Input
+                placeholder="Search name, email, phone..."
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                className="pl-9"
+              />
+              <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             </div>
-          </PopoverContent>
-        </Popover>
+            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Items" />
+              </SelectTrigger>
+              <SelectContent>
+                {[20, 30, 40, 50, 60].map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n} / page
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Dialog open={addLeadOpen} onOpenChange={setAddLeadOpen}>
+              <DialogTrigger asChild>
+                <Button>+ Add Lead</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Add Lead</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-3">
+                  <Input
+                    placeholder="Full Name"
+                    value={addLeadForm.name}
+                    onChange={(e) => setAddLeadForm({ ...addLeadForm, name: e.target.value })}
+                  />
+                  <Input
+                    placeholder="Email"
+                    type="email"
+                    value={addLeadForm.email}
+                    onChange={(e) => setAddLeadForm({ ...addLeadForm, email: e.target.value })}
+                  />
+                  <Input
+                    placeholder="Phone"
+                    value={addLeadForm.phone}
+                    onChange={(e) => setAddLeadForm({ ...addLeadForm, phone: e.target.value })}
+                  />
+                  <Select value={addLeadForm.course} onValueChange={(v) => setAddLeadForm({ ...addLeadForm, course: v })}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select Course Interested" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[1000]">
+                      {courseOptions.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={addLeadForm.source} onValueChange={(v) => setAddLeadForm({ ...addLeadForm, source: v })}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Source" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[1000]">
+                      {addLeadSourceOptions.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={addLeadToSupabase}>Add Lead</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
 
-        <Dialog open={addLeadOpen} onOpenChange={setAddLeadOpen}>
-          <DialogTrigger asChild>
-            <Button className="ml-auto">+ Add Lead</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Add Lead</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-3">
-              <Input
-                placeholder="Full Name"
-                value={addLeadForm.name}
-                onChange={(e) => setAddLeadForm({ ...addLeadForm, name: e.target.value })}
-              />
-              <Input
-                placeholder="Email"
-                type="email"
-                value={addLeadForm.email}
-                onChange={(e) => setAddLeadForm({ ...addLeadForm, email: e.target.value })}
-              />
-              <Input
-                placeholder="Phone"
-                value={addLeadForm.phone}
-                onChange={(e) => setAddLeadForm({ ...addLeadForm, phone: e.target.value })}
-              />
-              <Select value={addLeadForm.course} onValueChange={(v) => setAddLeadForm({ ...addLeadForm, course: v })}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select Course Interested" />
-                </SelectTrigger>
-                <SelectContent className="z-[1000]">
-                  {courseOptions.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={addLeadForm.source} onValueChange={(v) => setAddLeadForm({ ...addLeadForm, source: v })}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Source (Online, Email, Offline, ...)" />
-                </SelectTrigger>
-                <SelectContent className="z-[1000]">
-                  {addLeadSourceOptions.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button onClick={addLeadToSupabase}>Add Lead</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-        <Select value={String(pageSize)} onValueChange={(v: any) => { setPageSize(Number(v)); setPage(1) }}>
-          <SelectTrigger className="w-[120px]">
-            <SelectValue placeholder={`Per page: ${pageSize}`} />
-          </SelectTrigger>
-          <SelectContent>
-            {[20, 30, 40, 50, 60].map((n) => (
-              <SelectItem key={n} value={String(n)}>
-                {n} / page
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="rounded-lg border overflow-x-auto">
-        <Table>
-          <TableHeader className="sticky top-0 bg-background z-10">
-            <TableRow>
-              <TableHead className="w-[60px]">S.No</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Course</TableHead>
-              <TableHead>Entrance Score</TableHead>
-              <TableHead>Final Score</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Next Follow-Up</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginated.map((r, idx) => {
-              const entranceDisplay = r.entrance_score ?? entranceScoreByEmail.get(r.email || "") ?? "-"
-              const finalDisplay = r.final_score ?? finalScoreByEmail.get(r.email || "") ?? "-"
-              if ((r.entrance_score || r.final_score) && !r.email?.includes("example")) {
-                console.log(`[v0] Lead ${r.name}: entrance_score=${r.entrance_score}, final_score=${r.final_score}`)
-              }
-
-              const isAdmitted = r.status === "Admitted"
-              const hasDocuments = studentsWithDocs.has(r.email?.toLowerCase() || "")
-              const needsDocuments = isAdmitted && !hasDocuments
-
-              return (
-                <TableRow
-                  key={r.id}
-                  className={`hover:bg-muted/40 ${needsDocuments ? "bg-red-50 hover:bg-red-100" : ""}`}
-                >
-                  <TableCell className="font-medium">{(page - 1) * pageSize + idx + 1}</TableCell>
-                  <TableCell className="font-medium">{r.name}</TableCell>
-                  <TableCell>{r.phone}</TableCell>
-                  <TableCell>{r.course}</TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/test-results?q=${encodeURIComponent(r.email || "")}`}
-                      className="underline underline-offset-2"
-                      title="View Entrance test results"
-                    >
-                      {entranceDisplay}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/test-results?q=${encodeURIComponent(r.email || "")}`}
-                      className="underline underline-offset-2"
-                      title="View Final test results"
-                    >
-                      {finalDisplay}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      style={{
-                        background:
-                          statusStyles[(r.status as Status) || "New Enquiry"]?.bg || "oklch(var(--status-new))",
-                        color: statusStyles[(r.status as Status) || "New Enquiry"]?.fg || "oklch(var(--status-new-fg))",
-                      }}
-                      className="font-medium"
-                    >
-                      {r.status || "New Enquiry"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{r.next_follow_up_date || "-"}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="inline-flex items-center gap-1">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <EyeIcon className="h-4 w-4 mr-1" />
-                            View Details
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-lg">
-                          <DialogHeader>
-                            <DialogTitle>Lead Details</DialogTitle>
-                          </DialogHeader>
-                          <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">Name</span>
-                              <div>{r.name}</div>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Email</span>
-                              <div>{r.email}</div>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Phone</span>
-                              <div>{r.phone}</div>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Course</span>
-                              <div>{r.course}</div>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Qualification</span>
-                              <div>{r.qualification || "-"}</div>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Source</span>
-                              <div>{r.source || "-"}</div>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Entrance Score</span>
-                              <div>{r.entrance_score ?? "-"}</div>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Final Score</span>
-                              <div>{r.final_score ?? "-"}</div>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Date</span>
-                              <div>{r.created_at ? new Date(r.created_at).toLocaleDateString() : "-"}</div>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Next Follow-Up</span>
-                              <div>{r.next_follow_up_date || "-"}</div>
-                            </div>
-                            <div className="col-span-2">
-                              <span className="text-muted-foreground">Remarks</span>
-                              <div className="whitespace-pre-wrap">{r.remarks || "-"}</div>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          if (r.id) {
-                            markWithHistory(r.id, "HR Called", undefined, "Status → HR Called")
-                          }
-                        }}
-                      >
-                        <PhoneCallIcon className="h-4 w-4 mr-1" />
-                        Call Lead
-                      </Button>
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <ChevronDownIcon className="h-4 w-4 mr-1" />
-                            Action
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => {
-                              if (r.id) {
-                                markWithHistory(r.id, "Admitted", undefined, "Status → Admitted")
-                              }
-                            }}
-                          >
-                            Admit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              if (r.id) {
-                                markWithHistory(r.id, "Pending", undefined, "Status → Pending (test initiated)")
-                              }
-                              try {
-                                if (TEST_FORM_URL) {
-                                  const url = new URL(TEST_FORM_URL)
-                                  url.searchParams.set("name", r.name || "")
-                                  url.searchParams.set("email", r.email || "")
-                                  url.searchParams.set("phone", r.phone || "")
-                                  url.searchParams.set("course", r.course || "")
-                                  window.open(url.toString(), "_blank", "noopener,noreferrer")
-                                } else {
-                                  alert(
-                                    "Set NEXT_PUBLIC_TEST_FORM_URL to your Google Form prefill URL. We'll append name, email, phone, course.",
-                                  )
-                                }
-                              } catch {
-                                alert("Invalid NEXT_PUBLIC_TEST_FORM_URL. Please verify it in the Vars sidebar.")
-                              }
-                            }}
-                          >
-                            Pending
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setHoldIdx(filtered.indexOf(r))
-                              setHoldDate(formatLocalYMD(new Date()))
-                              setHoldRemarks("")
-                              setHoldOpen(true)
-                            }}
-                          >
-                            Hold for Next Batch
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => r.id && markWithHistory(r.id, "HR Called")}>
-                            HR Called
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => r.id && markWithHistory(r.id, "Visited")}>
-                            Visited
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => r.id && markWithHistory(r.id, "New Enquiry")}>
-                            New Enquiry
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => {
-                              if (r.id) {
-                                markWithHistory(r.id, "Rejected")
-                                window.dispatchEvent(new Event("leads:updated"))
-                              }
-                            }}
-                          >
-                            Reject
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              if (r.id) {
-                                markWithHistory(
-                                  r.id,
-                                  "Exam Written",
-                                  undefined,
-                                  "Status → Exam Written (test submitted)",
-                                )
-                              }
-                            }}
-                          >
-                            Exam Written
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              if (r.id) {
-                                markWithHistory(
-                                  r.id,
-                                  "Final Exam Written",
-                                  undefined,
-                                  "Status → Final Exam Written (2nd stage submitted)",
-                                )
-                              }
-                            }}
-                          >
-                            Final Exam Written
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-
-                      <Link
-                        href={`/test-results?email=${encodeURIComponent(r.email || "")}&name=${encodeURIComponent(r.name || "")}&phone=${encodeURIComponent(r.phone || "")}&course=${encodeURIComponent(r.course || "")}`}
-                        className="inline-flex items-center h-8 px-2 text-sm rounded-md hover:bg-muted"
-                      >
-                        View Results
-                      </Link>
-
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const params = new URLSearchParams({
-                            name: r.name || "",
-                            email: r.email || "",
-                            phone: r.phone || "",
-                            course: r.course || "",
-                          })
-                          params.set("open", "1")
-                          router.push(`/documents?${params.toString()}`)
-                        }}
-                      >
-                        Upload Docs
-                      </Button>
-                    </div>
-                  </TableCell>
+          {/* Table */}
+          <div className="rounded-lg border overflow-x-auto">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow>
+                  <TableHead className="w-[200px]">Name</TableHead>
+                  <TableHead className="w-[130px]">Phone</TableHead>
+                  <TableHead className="w-[160px]">Course</TableHead>
+                  <TableHead className="w-[150px]">Stage</TableHead>
+                  <TableHead className="w-[90px] text-center">Attempts</TableHead>
+                  <TableHead className="w-[160px]">Next Follow-Up</TableHead>
+                  <TableHead className="w-[110px] text-right">Actions</TableHead>
                 </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {paginated.map((r) => {
+                  const followUpStatus = getFollowUpStatus(r.next_follow_up_date)
+                  const callAttempts = r.call_attempts || 0
 
-      <Pagination>
-        <PaginationContent>
-          <PaginationItem>
-            <PaginationPrevious
-              href="#"
-              onClick={(e: any) => {
-                e.preventDefault()
-                setPage((p) => Math.max(1, p - 1))
-              }}
-            />
-          </PaginationItem>
+                  return (
+                    <TableRow key={r.id} className="hover:bg-muted/40">
+                      <TableCell className="font-medium">{r.name}</TableCell>
+                      <TableCell>{r.phone}</TableCell>
+                      <TableCell>{r.course}</TableCell>
+                      <TableCell>
+                        <Badge
+                          style={{
+                            background: statusStyles[(r.status as Status) || "New Enquiry"]?.bg || "oklch(var(--status-new))",
+                            color: statusStyles[(r.status as Status) || "New Enquiry"]?.fg || "oklch(var(--status-new-fg))",
+                          }}
+                        >
+                          {r.status || "New Enquiry"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className={callAttempts >= 3 ? "text-red-600 font-medium" : ""}>
+                          📞 {callAttempts}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {followUpStatus === "overdue" && (
+                          <Badge variant="destructive">Overdue</Badge>
+                        )}
+                        {followUpStatus === "today" && (
+                          <Badge variant="secondary" className="bg-yellow-100 text-yellow-900">
+                            Due Today
+                          </Badge>
+                        )}
+                        {followUpStatus === "upcoming" && (
+                          <span className="text-sm text-muted-foreground">{r.next_follow_up_date}</span>
+                        )}
+                        {!r.next_follow_up_date && (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreVerticalIcon className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-[200px]">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedLead(r)
+                                setDetailsOpen(true)
+                              }}
+                            >
+                              <EyeIcon className="h-4 w-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setLogCallLeadId(r.id || null)
+                                setLogCallOpen(true)
+                              }}
+                            >
+                              <PhoneCallIcon className="h-4 w-4 mr-2" />
+                              Log Call
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => markWithHistory(r.id || "", "New Enquiry")}>
+                              New Enquiry
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => markWithHistory(r.id || "", "Contacted")}>
+                              Contacted
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => markWithHistory(r.id || "", "Visited")}>
+                              Visited
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => markWithHistory(r.id || "", "Exam Written")}>
+                              Exam Written
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => markWithHistory(r.id || "", "Final Exam Written")}>
+                              Final Exam Written
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => markWithHistory(r.id || "", "Admit")}>
+                              Admit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => markWithHistory(r.id || "", "Reject")} className="text-destructive">
+                              Reject
+                            </DropdownMenuItem>
+                            {(r.status === "Exam Written" || r.status === "Final Exam Written") && (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  router.push(
+                                    `/test-results?email=${encodeURIComponent(r.email || "")}&name=${encodeURIComponent(r.name || "")}&phone=${encodeURIComponent(r.phone || "")}&course=${encodeURIComponent(r.course || "")}`
+                                  )
+                                }}
+                              >
+                                View Results
+                              </DropdownMenuItem>
+                            )}
+                            {r.status === "Admit" && (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  const params = new URLSearchParams({
+                                    name: r.name || "",
+                                    email: r.email || "",
+                                    phone: r.phone || "",
+                                    course: r.course || "",
+                                    open: "1",
+                                  })
+                                  router.push(`/documents?${params.toString()}`)
+                                }}
+                              >
+                                Upload Documents
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
 
-          {pagesToRender.map((p, i) =>
-            typeof p === "number" ? (
-              <PaginationItem key={i}>
-                <PaginationLink
+          {/* Pagination */}
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
                   href="#"
-                  isActive={p === page}
                   onClick={(e: any) => {
                     e.preventDefault()
-                    setPage(p)
+                    setPage((p) => Math.max(1, p - 1))
                   }}
-                >
-                  {p}
-                </PaginationLink>
+                />
               </PaginationItem>
-            ) : (
-              <PaginationItem key={`e-${i}`}>
-                <span className="inline-flex items-center px-3">{p}</span>
+              {pagesToRender.map((p, i) =>
+                typeof p === "number" ? (
+                  <PaginationItem key={i}>
+                    <PaginationLink
+                      href="#"
+                      isActive={p === page}
+                      onClick={(e: any) => {
+                        e.preventDefault()
+                        setPage(p)
+                      }}
+                    >
+                      {p}
+                    </PaginationLink>
+                  </PaginationItem>
+                ) : (
+                  <PaginationItem key={`e-${i}`}>
+                    <span className="inline-flex items-center px-3">{p}</span>
+                  </PaginationItem>
+                )
+              )}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e: any) => {
+                    e.preventDefault()
+                    setPage((p) => Math.min(totalPages, p + 1))
+                  }}
+                />
               </PaginationItem>
-            ),
-          )}
+            </PaginationContent>
+          </Pagination>
+        </TabsContent>
+      </Tabs>
 
-          <PaginationItem>
-            <PaginationNext
-              href="#"
-              onClick={(e: any) => {
-                e.preventDefault()
-                setPage((p) => Math.min(totalPages, p + 1))
-              }}
-            />
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
-
-      <Dialog open={holdOpen} onOpenChange={setHoldOpen}>
-        <DialogTrigger asChild>
-          <Button className="hidden">Hold for Next Batch</Button>
-        </DialogTrigger>
+      {/* Log Call Modal */}
+      <Dialog open={logCallOpen} onOpenChange={setLogCallOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Schedule Follow-Up</DialogTitle>
+            <DialogTitle>📞 Log Call</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-3">
+          <div className="grid gap-4">
             <div>
-              <span className="text-sm text-muted-foreground">Next Follow-Up Date</span>
-              <Input type="date" value={holdDate} onChange={(e) => setHoldDate(e.target.value)} />
+              <label className="text-sm font-medium">Call Outcome</label>
+              <Select value={logCallOutcome} onValueChange={setLogCallOutcome}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Interested">Interested</SelectItem>
+                  <SelectItem value="Not Answered">Not Answered</SelectItem>
+                  <SelectItem value="Busy">Busy</SelectItem>
+                  <SelectItem value="Call Back Later">Call Back Later</SelectItem>
+                  <SelectItem value="Not Interested">Not Interested</SelectItem>
+                  <SelectItem value="Wrong Number">Wrong Number</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <span className="text-sm text-muted-foreground">Remarks</span>
-              <textarea
-                className="min-h-[100px] rounded-md border p-2 w-full"
-                value={holdRemarks}
-                onChange={(e) => setHoldRemarks(e.target.value)}
-                placeholder="Any notes for the next call..."
+              <label className="text-sm font-medium">Next Follow-Up Date</label>
+              <Input
+                type="date"
+                value={logCallNextDate}
+                onChange={(e) => setLogCallNextDate(e.target.value)}
               />
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setHoldOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setLogCallOpen(false)}
+            >
               Cancel
             </Button>
             <Button
               onClick={() => {
-                if (holdIdx == null) return setHoldOpen(false)
-                const lead = filtered[holdIdx]
-                if (lead?.id) {
-                  markWithHistory(
-                    lead.id,
-                    "Hold for Next Batch",
-                    { next_follow_up_date: holdDate, remarks: holdRemarks },
-                    `Status → Hold for Next Batch; Next Follow-Up: ${holdDate}`,
-                  )
+                if (logCallLeadId) {
+                  handleLogCall(logCallLeadId)
                 }
-                setHoldOpen(false)
               }}
             >
-              Save
+              Save Call
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Details Modal */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Lead Details</DialogTitle>
+          </DialogHeader>
+          {selectedLead && (
+            <div className="grid grid-cols-2 gap-4 text-sm max-h-[60vh] overflow-y-auto">
+              <div>
+                <span className="text-muted-foreground font-medium">Name</span>
+                <div>{selectedLead.name}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-medium">Email</span>
+                <div className="break-all">{selectedLead.email}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-medium">Phone</span>
+                <div>{selectedLead.phone}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-medium">Course</span>
+                <div>{selectedLead.course}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-medium">Qualification</span>
+                <div>{selectedLead.qualification || "-"}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-medium">Source</span>
+                <div>{selectedLead.source || "-"}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-medium">Status</span>
+                <div>
+                  <Badge
+                    style={{
+                      background: statusStyles[(selectedLead.status as Status) || "New Enquiry"]?.bg,
+                      color: statusStyles[(selectedLead.status as Status) || "New Enquiry"]?.fg,
+                    }}
+                  >
+                    {selectedLead.status || "New Enquiry"}
+                  </Badge>
+                </div>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-medium">Call Attempts</span>
+                <div>📞 {selectedLead.call_attempts || 0}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-medium">Entrance Score</span>
+                <div>{selectedLead.entrance_score || "-"}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-medium">Final Score</span>
+                <div>{selectedLead.final_score || "-"}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-medium">Last Called</span>
+                <div>{selectedLead.last_call_at ? new Date(selectedLead.last_call_at).toLocaleDateString() : "-"}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-medium">Next Follow-Up</span>
+                <div>{selectedLead.next_follow_up_date || "-"}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground font-medium">Created</span>
+                <div>{selectedLead.created_at ? new Date(selectedLead.created_at).toLocaleDateString() : "-"}</div>
+              </div>
+              <div className="col-span-2">
+                <span className="text-muted-foreground font-medium">Remarks</span>
+                <div className="whitespace-pre-wrap mt-1">{selectedLead.remarks || "-"}</div>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
