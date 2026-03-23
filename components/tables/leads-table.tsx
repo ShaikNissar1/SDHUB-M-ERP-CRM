@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ChevronDownIcon, PhoneCallIcon, EyeIcon, SearchIcon, MoreVerticalIcon } from "lucide-react"
+import { ChevronDownIcon, PhoneCallIcon, EyeIcon, SearchIcon, MoreVerticalIcon, DownloadIcon } from "lucide-react"
 import {
   Pagination,
   PaginationContent,
@@ -112,8 +112,17 @@ export function LeadsTable() {
   const { courses: supabaseCourses } = useSupabaseCourses()
   
   // Extract unique courses from actual leads data (Google Forms)
+  // Standard courses from the form
+  const standardCourses = [
+    "Digital Marketing",
+    "Data Analytics",
+    "Tally Prime",
+    "Office Administration Assistant",
+    "Web Development"
+  ]
+  
   const courseOptionsFromData = useMemo(() => {
-    const coursesSet = new Set<string>()
+    const coursesSet = new Set<string>(standardCourses)
     supabaseLeads.forEach((lead) => {
       if (lead.course && lead.course.trim()) {
         coursesSet.add(lead.course)
@@ -139,6 +148,38 @@ export function LeadsTable() {
     course: "",
     source: "Online",
   })
+
+  const handleExportToExcel = () => {
+    // Prepare data for export
+    const headers = ["Name", "Email", "Phone", "Course", "Status", "Source", "Next Follow-Up", "Created At"]
+    const rows = filtered.map((lead) => [
+      lead.name || "",
+      lead.email || "",
+      lead.phone || "",
+      lead.course || "",
+      lead.status || "New Enquiry",
+      lead.source || "",
+      lead.next_follow_up_date || "",
+      lead.created_at ? new Date(lead.created_at).toLocaleDateString() : ""
+    ])
+    
+    // Create CSV content
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    ].join("\n")
+    
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute("download", `enquiries-export-${new Date().toISOString().split("T")[0]}.csv`)
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   // Modals
   const [logCallOpen, setLogCallOpen] = useState(false)
@@ -414,7 +455,7 @@ export function LeadsTable() {
             
             {/* Course Filter */}
             <Select value={courseFilter} onValueChange={setCourseFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Filter by course" />
               </SelectTrigger>
               <SelectContent>
@@ -439,6 +480,17 @@ export function LeadsTable() {
                 ))}
               </SelectContent>
             </Select>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleExportToExcel}
+              className="gap-2"
+            >
+              <DownloadIcon className="h-4 w-4" />
+              Export
+            </Button>
+            
             <Dialog open={addLeadOpen} onOpenChange={setAddLeadOpen}>
               <DialogTrigger asChild>
                 <Button>+ Add Lead</Button>
