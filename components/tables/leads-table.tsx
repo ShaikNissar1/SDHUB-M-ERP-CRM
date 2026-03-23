@@ -110,8 +110,17 @@ function loadTestResults(): TestResult[] {
 export function LeadsTable() {
   const { leads: supabaseLeads, loading, refreshLeads } = useSupabaseLeads()
   const { courses: supabaseCourses } = useSupabaseCourses()
-  const courseOptions = supabaseCourses.map((c) => c.name)
-  const courseOptionsSet = useMemo(() => new Set(courseOptions.map((c) => c.toLowerCase())), [courseOptions])
+  
+  // Extract unique courses from actual leads data (Google Forms)
+  const courseOptionsFromData = useMemo(() => {
+    const coursesSet = new Set<string>()
+    supabaseLeads.forEach((lead) => {
+      if (lead.course && lead.course.trim()) {
+        coursesSet.add(lead.course)
+      }
+    })
+    return Array.from(coursesSet).sort()
+  }, [supabaseLeads])
 
   // State
   const [rows, setRows] = useState<Lead[]>([])
@@ -410,7 +419,7 @@ export function LeadsTable() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Courses</SelectItem>
-                {courseOptions.map((c) => (
+                {courseOptionsFromData.map((c) => (
                   <SelectItem key={c} value={c}>
                     {c}
                   </SelectItem>
@@ -460,11 +469,19 @@ export function LeadsTable() {
                       <SelectValue placeholder="Select Course Interested" />
                     </SelectTrigger>
                     <SelectContent className="z-[1000]">
-                      {courseOptions.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
+                      {courseOptionsFromData.length > 0 ? (
+                        courseOptionsFromData.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        supabaseCourses.map((c) => (
+                          <SelectItem key={c.name} value={c.name}>
+                            {c.name}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   <Select value={addLeadForm.source} onValueChange={(v) => setAddLeadForm({ ...addLeadForm, source: v })}>
