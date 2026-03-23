@@ -111,25 +111,14 @@ export function LeadsTable() {
   const { leads: supabaseLeads, loading, refreshLeads } = useSupabaseLeads()
   const { courses: supabaseCourses } = useSupabaseCourses()
   
-  // Extract unique courses from actual leads data (Google Forms)
-  // Standard courses from the form
-  const standardCourses = [
+  // Standard courses from the Google Form - fixed list
+  const courseOptionsFromData = [
     "Digital Marketing",
     "Data Analytics",
     "Tally Prime",
     "Office Administration Assistant",
     "Web Development"
   ]
-  
-  const courseOptionsFromData = useMemo(() => {
-    const coursesSet = new Set<string>(standardCourses)
-    supabaseLeads.forEach((lead) => {
-      if (lead.course && lead.course.trim()) {
-        coursesSet.add(lead.course)
-      }
-    })
-    return Array.from(coursesSet).sort()
-  }, [supabaseLeads])
 
   // State
   const [rows, setRows] = useState<Lead[]>([])
