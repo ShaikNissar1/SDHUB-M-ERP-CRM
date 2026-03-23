@@ -117,6 +117,7 @@ export function LeadsTable() {
   const [rows, setRows] = useState<Lead[]>([])
   const [q, setQ] = useState("")
   const [tab, setTab] = useState<TabType>("active")
+  const [courseFilter, setCourseFilter] = useState<string>("all")
   const [testResults, setTestResults] = useState<TestResult[]>([])
   const [page, setPage] = useState<number>(1)
   const [pageSize, setPageSize] = useState<number>(30)
@@ -301,6 +302,12 @@ export function LeadsTable() {
         (r.email || "").toLowerCase().includes(q.toLowerCase()) ||
         (r.phone || "").includes(q)
 
+      // Course filter
+      let courseMatch = true
+      if (courseFilter !== "all") {
+        courseMatch = (r.course || "").toLowerCase() === courseFilter.toLowerCase()
+      }
+
       // Tab filtering
       const status = r.status || "New Enquiry"
       let tabMatch = true
@@ -312,14 +319,14 @@ export function LeadsTable() {
         tabMatch = ["Admit", "Reject", "Admitted", "Rejected"].includes(status)
       }
 
-      return textMatch && tabMatch
+      return textMatch && courseMatch && tabMatch
     })
-  }, [rows, q, tab])
+  }, [rows, q, tab, courseFilter])
 
   // Reset to first page when filters change
   useEffect(() => {
     setPage(1)
-  }, [q, tab])
+  }, [q, tab, courseFilter])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const paginated = useMemo(() => {
@@ -368,6 +375,22 @@ export function LeadsTable() {
         </TabsList>
 
         <TabsContent value={tab} className="space-y-4">
+          {/* Course Filter Indicator */}
+          {courseFilter !== "all" && (
+            <div className="text-sm">
+              <span className="font-medium">Currently viewing:</span>{" "}
+              <span className="px-2 py-0.5 rounded-full border text-xs">{courseFilter} Enquiries</span>{" "}
+              <Button 
+                variant="link" 
+                size="sm" 
+                className="px-1 h-auto" 
+                onClick={() => setCourseFilter("all")}
+              >
+                Clear filter
+              </Button>
+            </div>
+          )}
+          
           {/* Search and Controls */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-[240px]">
@@ -379,6 +402,22 @@ export function LeadsTable() {
               />
               <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             </div>
+            
+            {/* Course Filter */}
+            <Select value={courseFilter} onValueChange={setCourseFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by course" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Courses</SelectItem>
+                {courseOptions.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
             <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
               <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="Items" />
